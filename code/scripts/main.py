@@ -24,7 +24,7 @@ def visualize_timestep(X_bar, tstep):
     scat = plt.scatter(x_locs, y_locs, c='r', marker='o')
     plt.pause(0.00001)
     scat.remove()
-
+# TODO : change so that particles are not intialized in weird spots on map
 def init_particles_random(num_particles, occupancy_map):
 
     # initialize [x, y, theta] positions in world_frame for all particles

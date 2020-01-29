@@ -23,7 +23,16 @@ class Resampling:
         """
         TODO : Add your code here
         """
-
+        X_bar_resampled = np.zeros(X_bar.shape)
+        weights_sum = np.sum(X_bar[:,3])
+        weights = X_bar[:,3] / weights_sum
+        samples = np.random.multinomial(len(X_bar), weights, size=1)
+        counter = 0
+        for i, s in samples:
+            for j in range(s):
+                X_bar_resampled[counter] = X_bar[i]
+                counter += 1
+        
         return X_bar_resampled
 
     def low_variance_sampler(self, X_bar):

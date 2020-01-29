@@ -19,6 +19,13 @@ class SensorModel:
         """
         TODO : Initialize Sensor Model parameters here
         """
+        # initialize all the parameters for the sensor model except the mean (comes from the raycasted val)
+        # w1 w2 w3 w4 sigma lambda range
+
+
+    # calculates the probability of your measurement given sensor model pdf based on the raycasted mean val
+    def getProbability(self, mean, measurement):
+
 
     def beam_range_finder_model(self, z_t1_arr, x_t1):
         """
@@ -30,6 +37,13 @@ class SensorModel:
         """
         TODO : Add your code here
         """
+        # picking every other measurement for now
+        for i in range(len(z_t1_arr)/2):
+            # calculate ray cast for the particle @ that angle
+            # create probability distribution
+            # calculate likelihood for that laser reading
+        
+        # multiply all the likelihoods
 
         return q    
  
