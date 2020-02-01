@@ -53,8 +53,6 @@ class SensorModel:
         #p = gauss
         return p
 
->>>>>>> 94b49f139d6dd01e230f0d0ea07b63adcbcf0fd5
-
     def beam_range_finder_model(self, z_t1_arr, x_t1):
         """
         param[in] z_t1_arr : laser range readings [array of 180 values] at time t
@@ -72,11 +70,6 @@ class SensorModel:
             # create probability distribution
             # calculate likelihood for that laser reading
             pass
-<<<<<<< HEAD
-            
-=======
-        
->>>>>>> 94b49f139d6dd01e230f0d0ea07b63adcbcf0fd5
         # multiply all the likelihoods
 
         return q    
