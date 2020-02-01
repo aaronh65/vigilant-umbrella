@@ -32,7 +32,6 @@ class Resampling:
             for j in range(s):
                 X_bar_resampled[counter] = X_bar[i]
                 counter += 1
-        
         return X_bar_resampled
 
     def low_variance_sampler(self, X_bar):
@@ -45,7 +44,18 @@ class Resampling:
         """
         TODO : Add your code here
         """
-        
+        X_bar_resampled = list()
+        M = len(X_bar)
+        r = np.random.uniform(0, M**-1)
+        c = X_bar[0][-1]
+        i = 0
+        for m in range(1, M+1):
+            u = r + (m-1)*M**-1
+            while u > c:
+                i += 1
+                c += X_bar[i][-1]
+            X_bar_resampled.append(X_bar[i])
+        assert len(X_bar_resampled) == len(X_bar), "number of resampled points not correct"
         return X_bar_resampled
 
 if __name__ == "__main__":
