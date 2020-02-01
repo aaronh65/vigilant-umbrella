@@ -66,11 +66,11 @@ class MotionModel:
         x, y, th = x_t0
         
         xp = x + dht * np.cos(th + dhr1)
-        print(x, dht, th+dhr1)
+        #print(x, dht, th+dhr1)
         yp = y + dht * np.sin(th + dhr1)
-        print(y, dht, th+dhr1)
+        #print(y, dht, th+dhr1)
         thp = th + dhr1 + dhr2
-        print(th, dhr1+dhr2)
+        #print(th, dhr1+dhr2)
         thp = self.wrap(thp)
         
         x_t1 = [xp, yp, thp]
