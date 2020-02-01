@@ -16,7 +16,7 @@ class MapReader:
         self._size_x = self._occupancy_map.shape[0] * self._resolution
         self._size_y = self._occupancy_map.shape[1] * self._resolution
 
-        print 'Finished reading 2D map of size : ' + '(' + str(self._size_x) + ',' + str(self._size_y) + ')'
+        print('Finished reading 2D map of size : ' + '(' + str(self._size_x) + ',' + str(self._size_y) + ')')
 
     def visualize_map(self):
         fig = plt.figure()

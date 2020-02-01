@@ -104,7 +104,7 @@ def main():
              odometry_laser = meas_vals[3:6] # [x, y, theta] coordinates of laser in odometry frame
              ranges = meas_vals[6:-1] # 180 range measurement values from single laser scan
         
-        print "Processing time step " + str(time_idx) + " at time " + str(time_stamp) + "s"
+        print("Processing time step " + str(time_idx) + " at time " + str(time_stamp) + "s")
 
         if (first_time_idx):
             u_t0 = odometry_robot
