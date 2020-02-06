@@ -28,7 +28,7 @@ class Resampling:
         weights = X_bar[:,3] / weights_sum
         samples = np.random.multinomial(len(X_bar), weights, size=1)
         counter = 0
-        for i, s in samples:
+        for i, s in enumerate(samples[0]):
             for j in range(s):
                 X_bar_resampled[counter] = X_bar[i]
                 counter += 1

@@ -92,8 +92,8 @@ class SensorModel:
             z_cast = self.range_find(laser_origin, angle)
             meas = z_t1_arr[idx]
             prob = self.getProbability(z_cast, meas)
-            q *= prob
-        return q    
+            q += prob
+        return np.log(q)    
 
     def visualize(self):
         measurements = np.arange(0,self.range,1) + 1
