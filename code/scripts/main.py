@@ -21,8 +21,8 @@ def visualize_map(occupancy_map):
 def visualize_timestep(X_bar, tstep):
     x_locs = X_bar[:,0]/10.0
     y_locs = X_bar[:,1]/10.0
-    scat = plt.scatter(x_locs, y_locs, c='r', marker='o')
-    plt.pause(0.00001)
+    scat = plt.scatter(x_locs, y_locs, c='r', marker='o', s=1)
+    plt.pause(100)
     scat.remove()
 
 # TODO : change so that particles are not intialized in weird spots on map
@@ -38,7 +38,7 @@ def init_particles_random(num_particles, occupancy_map):
     w0_vals = w0_vals / num_particles
 
     X_bar_init = np.hstack((x0_vals,y0_vals,theta0_vals,w0_vals))
-    
+    #print(w0_vals)    
     return X_bar_init
 
 def init_particles_freespace(num_particles, occupancy_map):
@@ -71,14 +71,21 @@ def main():
 
     map_obj = MapReader(src_path_map)
     occupancy_map = map_obj.get_map() 
+    print(occupancy_map[600,150])
     logfile = open(src_path_log, 'r')
 
     motion_model = MotionModel()
     sensor_model = SensorModel(occupancy_map)
     resampler = Resampling()
 
-    num_particles = 10
-    X_bar = init_particles_random(num_particles, occupancy_map)
+    num_particles = 1
+    #X_bar = init_particles_random(num_particles, occupancy_map)
+    y0_vals = np.ones(shape=(num_particles,1))*4500
+    x0_vals = np.ones(shape=(num_particles,1))*4000
+    theta0_vals = np.random.uniform( -3.14, 3.14, (num_particles, 1) )
+    w0_vals = np.ones( (num_particles,1), dtype=np.float64)
+    w0_vals = w0_vals / num_particles
+    X_bar = np.hstack((x0_vals,y0_vals,theta0_vals,w0_vals))
 
     vis_flag = True
 
@@ -115,40 +122,43 @@ def main():
         X_bar_new = np.zeros( (num_particles,4), dtype=np.float64)
         u_t1 = odometry_robot
         for m in range(0, num_particles):
-
             """
             MOTION MODEL
             """
-            print('start motion model')
+            #print('start motion model')
             x_t0 = X_bar[m, 0:3]
             x_t1 = motion_model.update(u_t0, u_t1, x_t0)
-            print('end motion model')
+            #print('end motion model')
 
             """
             SENSOR MODEL
             """
             
-            print('start sensor model')
+            #print('start sensor model')
             if (meas_type == "L"):
                 z_t = ranges
-                w_t = sensor_model.beam_range_finder_model(z_t, x_t1)
-                # w_t = 1/num_particles
+                w_t, xqs, yqs = sensor_model.beam_range_finder_model(z_t, x_t1)
+                #print('w_t =', w_t)
                 X_bar_new[m,:] = np.hstack((x_t1, w_t))
             else:
                 X_bar_new[m,:] = np.hstack((x_t1, X_bar[m,3]))
-            
-            print('end sensor model')
-        X_bar = X_bar_new
+            #print('end sensor model')
+        #X_bar = X_bar_new
         u_t0 = u_t1
 
         """
         RESAMPLING
         """
-        X_bar = resampler.low_variance_sampler(X_bar)
+        #X_bar = resampler.low_variance_sampler(X_bar)
 
         if vis_flag:
+            xqs = np.reshape(xqs, (len(xqs), 1))
+            yqs = np.reshape(yqs, (len(yqs), 1))
+            X_bar = np.hstack((xqs, yqs))
             visualize_timestep(X_bar, time_idx)
-    
+        print('end loop')
+
+'''    
 def test_motion_model():
     """
     Description of variables used
@@ -224,15 +234,13 @@ def test_motion_model():
             """
             SENSOR MODEL
             """
-            '''
             if (meas_type == "L"):
                 z_t = ranges
-                w_t = sensor_model.beam_range_finder_model(z_t, x_t1)
+                w_t, xqs, yqs = sensor_model.beam_range_finder_model(z_t, x_t1)
                 # w_t = 1/num_particles
                 X_bar_new[m,:] = np.hstack((x_t1, w_t))
             else:
                 X_bar_new[m,:] = np.hstack((x_t1, X_bar[m,3]))
-            '''
         X_bar = np.array([[x_t1[0], x_t1[1], x_t1[2], 1.0]])
         # X_bar = X_bar_new
         u_t0 = u_t1
@@ -246,10 +254,12 @@ def test_motion_model():
             visualize_timestep(X_bar, time_idx)
             
         points.append([X_bar[0, 0], X_bar[0, 1]])
+        print('end loop')
         
     points = np.array(points)
     plt.scatter(points[:, 0], points[:, 1], c='r', marker='o')
     
+    '''
 if __name__=="__main__":
     main()
     # test_motion_model()

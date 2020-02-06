@@ -48,10 +48,13 @@ class Resampling:
         M = len(X_bar)
         r = np.random.uniform(0, M**-1)
         c = X_bar[0][-1]
+        #print(c)
         i = 1
         for m in range(1, M+1):
-            u = r + (m-1)*M**-1
+            u = r + (m-1)*(1/M)
+            #print(u)
             while u > c:
+                print(c)
                 i += 1
                 c += X_bar[i][-1]
             X_bar_resampled.append(X_bar[i])
