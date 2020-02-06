@@ -49,6 +49,35 @@ def init_particles_freespace(num_particles, occupancy_map):
     TODO : Add your code here
     """ 
 
+    # initialize weights for all particles
+    w0_vals = np.ones( (num_particles,1), dtype=np.float64)
+    w0_vals = w0_vals / num_particles
+
+    y0_vals = []
+    x0_vals = []
+
+    # initialize angle [theta] in world_frame for all particles
+    theta0_vals = np.random.uniform( -3.14, 3.14, (num_particles, 1) )
+
+    new_num_particles = num_particles
+    while len(y0_vals) < num_particles:
+        # initialize [x, y] positions in world_frame for all particles
+        y0_rand = np.random.uniform( 0, 7000, (new_num_particles, 1) )
+        x0_rand = np.random.uniform( 3000, 7000, (new_num_particles, 1) )
+
+        for i in range(new_num_particles):
+            if occupancy_map[np.round(y0_rand[i]/10.0).astype(np.int64), np.round(x0_rand[i]/10.0).astype(np.int64)] == 0:
+                if len(y0_vals) < num_particles:
+                    y0_vals.append(y0_rand[i])
+                    x0_vals.append(x0_rand[i])
+
+        new_num_particles = num_particles
+
+    y0_vals = np.array(y0_vals)
+    x0_vals = np.array(x0_vals)
+
+    X_bar_init = np.hstack((x0_vals,y0_vals,theta0_vals,w0_vals))
+
     return X_bar_init
 
 def main():
@@ -86,6 +115,7 @@ def main():
     w0_vals = np.ones( (num_particles,1), dtype=np.float64)
     w0_vals = w0_vals / num_particles
     X_bar = np.hstack((x0_vals,y0_vals,theta0_vals,w0_vals))
+    #X_bar = init_particles_freespace(num_particles, occupancy_map)
 
     vis_flag = True
 
@@ -125,16 +155,15 @@ def main():
             """
             MOTION MODEL
             """
-            #print('start motion model')
+            # print('start motion model')
             x_t0 = X_bar[m, 0:3]
             x_t1 = motion_model.update(u_t0, u_t1, x_t0)
-            #print('end motion model')
+            # print('end motion model')
 
             """
             SENSOR MODEL
             """
             
-            #print('start sensor model')
             if (meas_type == "L"):
                 z_t = ranges
                 w_t, xqs, yqs = sensor_model.beam_range_finder_model(z_t, x_t1)
@@ -142,15 +171,14 @@ def main():
                 X_bar_new[m,:] = np.hstack((x_t1, w_t))
             else:
                 X_bar_new[m,:] = np.hstack((x_t1, X_bar[m,3]))
-            #print('end sensor model')
-        #X_bar = X_bar_new
+        X_bar = X_bar_new
         u_t0 = u_t1
 
         """
         RESAMPLING
         """
-        #X_bar = resampler.low_variance_sampler(X_bar)
-
+        # X_bar = resampler.low_variance_sampler(X_bar)
+        X_bar = resampler.multinomial_sampler(X_bar)
         if vis_flag:
             xqs = np.reshape(xqs, (len(xqs), 1))
             yqs = np.reshape(yqs, (len(yqs), 1))
