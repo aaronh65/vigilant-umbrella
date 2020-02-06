@@ -48,7 +48,7 @@ class Resampling:
         M = len(X_bar)
         r = np.random.uniform(0, M**-1)
         c = X_bar[0][-1]
-        i = 0
+        i = 1
         for m in range(1, M+1):
             u = r + (m-1)*M**-1
             while u > c:

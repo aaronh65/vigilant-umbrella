@@ -24,6 +24,7 @@ def visualize_timestep(X_bar, tstep):
     scat = plt.scatter(x_locs, y_locs, c='r', marker='o')
     plt.pause(0.00001)
     scat.remove()
+
 # TODO : change so that particles are not intialized in weird spots on map
 def init_particles_random(num_particles, occupancy_map):
 
@@ -76,10 +77,10 @@ def main():
     sensor_model = SensorModel(occupancy_map)
     resampler = Resampling()
 
-    num_particles = 500
+    num_particles = 10
     X_bar = init_particles_random(num_particles, occupancy_map)
 
-    vis_flag = 1
+    vis_flag = True
 
     """
     Monte Carlo Localization Algorithm : Main Loop
@@ -118,13 +119,16 @@ def main():
             """
             MOTION MODEL
             """
+            print('start motion model')
             x_t0 = X_bar[m, 0:3]
             x_t1 = motion_model.update(u_t0, u_t1, x_t0)
+            print('end motion model')
 
             """
             SENSOR MODEL
             """
             
+            print('start sensor model')
             if (meas_type == "L"):
                 z_t = ranges
                 w_t = sensor_model.beam_range_finder_model(z_t, x_t1)
@@ -133,6 +137,7 @@ def main():
             else:
                 X_bar_new[m,:] = np.hstack((x_t1, X_bar[m,3]))
             
+            print('end sensor model')
         X_bar = X_bar_new
         u_t0 = u_t1
 

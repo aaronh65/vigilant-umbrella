@@ -31,6 +31,22 @@ class SensorModel:
         self.range = 8190
         self.norm = norm
 
+    def wrap(self, angle):
+        """
+        param[in] angle : angle value in range [-inf, inf]
+        param[out] angle_wrapped " angle value in range [-pi, pi]
+        """
+        
+        """
+        TODO : Write wrapper to keep angle sums/differences in range [-pi, pi]
+        """
+        
+        # https://stackoverflow.com/questions/27093704/converge-values-to-range-pi-pi-in-matlab-not-using-wraptopi
+        
+        angle_wrapped = angle - 2*np.pi * np.floor((angle + np.pi) / (2*np.pi))
+        
+        return angle_wrapped
+
     # calculates the probability of your measurement given sensor model pdf based on the raycasted mean val
     def getProbability(self, ray, meas):
         #gauss = 1/np.sqrt(2*np.pi*self.sigma**2) * np.exp(-(meas-ray)**2/(2*self.sigma**2))
@@ -38,7 +54,6 @@ class SensorModel:
         gauss = self.norm.pdf(meas, loc=ray, scale=self.sigma)
         gauss_norm = self.norm.cdf(self.range, loc=ray, scale=self.sigma) - self.norm.cdf(0, loc=ray, scale=self.sigma)
         gauss = gauss / gauss_norm / self.sigma
-
         exp = 0
         if meas < ray:
             exp = self.lmbda*np.exp(-self.lmbda*meas)
@@ -65,21 +80,42 @@ class SensorModel:
         """
         q=1
         # picking every other measurement for now
-        for i in range(len(z_t1_arr)/2):
+
+        x, y, theta = x_t1
+        laser_origin = (x + np.cos(theta)*25, y + np.sin(theta)*25, theta)
+        start_angle = theta - np.pi/2
+        angles = [start_angle + np.pi/180 * n for n in range(180)]
+        for idx, angle in enumerate(angles):
             # calculate ray cast for the particle @ that angle
             # create probability distribution
             # calculate likelihood for that laser reading
-            pass
-        # multiply all the likelihoods
-
+            z_cast = self.range_find(laser_origin, angle)
+            meas = z_t1_arr[idx]
+            prob = self.getProbability(z_cast, meas)
+            q *= prob
         return q    
 
     def visualize(self):
-        measurements = np.arange(0,self.range,1)
-        dist = [self.getProbability(3000, meas) for meas in measurements]
+        measurements = np.arange(0,self.range,1) + 1
+        cast = np.arange(0, self.range,1)
+        probs = self.getProbability(cast, measurements)
         plt.plot(measurements, dist)
         plt.show()
- 
+
+    def range_find(self, laser_origin, angle):
+        x, y, theta = laser_origin
+        sample_rate = 50
+        z_cast = 0
+        xq = np.round(x/10).astype(int)
+        yq = np.round(y/10).astype(int)
+        while self.map[xq,yq] == 0:
+            dx = z_cast * np.cos(angle)
+            dy = z_cast * np.sin(angle)
+            xq = np.round((x + dx)/10).astype(int)
+            yq = np.round((y + dy)/10).astype(int)
+            z_cast += sample_rate
+        return z_cast
+
 if __name__=='__main__':
     model = SensorModel(None)
     model.visualize()
