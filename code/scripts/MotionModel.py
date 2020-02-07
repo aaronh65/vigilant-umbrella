@@ -15,10 +15,10 @@ class MotionModel:
         TODO : Initialize Motion Model parameters here (e.g. alpha1, 2, 3, and 4, user-defined)
         """
         
-        self.a1 = 0.2#2
-        self.a2 = 0.2#2
-        self.a3 = 0.2#2
-        self.a4 = 0.2#2
+        self.a1 = 0.1#2
+        self.a2 = 0.1#2
+        self.a3 = 0.1#2
+        self.a4 = 0.1#2
 
     def wrap(self, angle):
         """

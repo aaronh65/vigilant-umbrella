@@ -1,6 +1,7 @@
 import numpy as np
 import sys
 import pdb
+from tqdm import tqdm
 
 from MapReader import MapReader
 from MotionModel import MotionModel
@@ -22,7 +23,8 @@ def visualize_timestep(X_bar, tstep):
     x_locs = X_bar[:,0]/10.0
     y_locs = X_bar[:,1]/10.0
     scat = plt.scatter(x_locs, y_locs, c='r', marker='o', s=1)
-    plt.pause(1)
+    #plt.pause(0.00001)
+    plt.pause(100)
     scat.remove()
 
 # TODO : change so that particles are not intialized in weird spots on map
@@ -80,6 +82,29 @@ def init_particles_freespace(num_particles, occupancy_map):
 
     return X_bar_init
 
+def precompute_raycasts():
+    src_path_map = '../data/map/wean.dat'
+    map_obj = MapReader(src_path_map)
+    occupancy_map = map_obj.get_map()
+    sensor_model = SensorModel(occupancy_map)
+    height, width = occupancy_map.shape
+    lookup = np.zeros((height,width,360))-1
+    print('begin locs')
+    locs = np.load('locs.npy')
+    print('begin cast')
+    for i in tqdm(range(len(locs))):
+        x, y, theta_idx = locs[i]
+        theta = theta_idx * np.pi / 180
+        if occupancy_map[y,x] != 0:
+            continue
+        z_cast, xq, yq = sensor_model.range_find((x,y,theta), theta)
+        lookup[y,x,theta_idx] = z_cast
+    print('end cast')
+    np.save('lookup_test.npy', lookup)
+
+
+
+    
 def main():
 
     """
@@ -106,9 +131,10 @@ def main():
     sensor_model = SensorModel(occupancy_map)
     resampler = Resampling()
 
-    num_particles = 20
+    num_particles = 1
     #X_bar = init_particles_random(num_particles, occupancy_map)
-    X_bar = init_particles_freespace(num_particles, occupancy_map)
+    #X_bar = init_particles_freespace(num_particles, occupancy_map)
+    X_bar = np.array([[6500,1500,0*np.pi/2,1]])
 
     vis_flag = True
 
@@ -166,16 +192,20 @@ def main():
         X_bar = X_bar_new
         u_t0 = u_t1
 
+
         """
         RESAMPLING
         """
         # X_bar = resampler.low_variance_sampler(X_bar)
         X_bar = resampler.multinomial_sampler(X_bar)
         if vis_flag:
+            xqs = np.reshape(xqs, (len(xqs), 1))
+            yqs = np.reshape(yqs, (len(yqs), 1))
+            X_bar = np.hstack((xqs,yqs))
             visualize_timestep(X_bar, time_idx)
         print('end loop')
 
-'''    
+'''
 def test_motion_model():
     """
     Description of variables used
@@ -201,10 +231,10 @@ def test_motion_model():
     sensor_model = SensorModel(occupancy_map)
     resampler = Resampling()
 
-    num_particles = 1 # 500
+    num_particles = 500# 500
     X_bar = init_particles_random(num_particles, occupancy_map)
 
-    vis_flag = 0 # 1
+    vis_flag = 1 # 1
 
     """
     Monte Carlo Localization Algorithm : Main Loop
@@ -245,7 +275,7 @@ def test_motion_model():
             """
             MOTION MODEL
             """
-            x_t0 = X_bar[0,0:3]#[m, 0:3]
+            x_t0 = X_bar[m,0:3]#[m, 0:3]
             x_t1 = motion_model.update(u_t0, u_t1, x_t0)
 
             """
@@ -258,8 +288,8 @@ def test_motion_model():
                 X_bar_new[m,:] = np.hstack((x_t1, w_t))
             else:
                 X_bar_new[m,:] = np.hstack((x_t1, X_bar[m,3]))
-        X_bar = np.array([[x_t1[0], x_t1[1], x_t1[2], 1.0]])
-        # X_bar = X_bar_new
+        #X_bar = np.array([[x_t1[0], x_t1[1], x_t1[2], 1.0]])
+        X_bar = X_bar_new
         u_t0 = u_t1
 
         """
@@ -275,8 +305,11 @@ def test_motion_model():
         
     points = np.array(points)
     plt.scatter(points[:, 0], points[:, 1], c='r', marker='o')
-    
+
     '''
+    
 if __name__=="__main__":
-    main()
-    # test_motion_model()
+    #main()
+    #test_motion_model()
+    precompute_raycasts()
+
