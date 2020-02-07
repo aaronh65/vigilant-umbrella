@@ -30,6 +30,7 @@ class SensorModel:
         self.map = occupancy_map
         self.range = 8190
         self.norm = norm
+        self.ray_step = 10
 
     def wrap(self, angle):
         """
@@ -85,14 +86,14 @@ class SensorModel:
 
         x, y, theta = x_t1
         laser_origin = (x + np.cos(theta)*25, y + np.sin(theta)*25, theta)
-        print(laser_origin)
         start_angle = theta - np.pi/2
         angles = [start_angle + np.pi/180 * n for n in range(180)]
         xqs, yqs = list(), list()
-        for idx, angle in enumerate(angles):
+        for idx in range(0, len(angles), self.ray_step):
             # calculate ray cast for the particle @ that angle
             # create probability distribution
             # calculate likelihood for that laser reading
+            angle = angles[idx]
             z_cast, xq, yq = self.range_find(laser_origin, angle)
             xqs.append(xq)
             yqs.append(yq)

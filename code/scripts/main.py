@@ -22,7 +22,7 @@ def visualize_timestep(X_bar, tstep):
     x_locs = X_bar[:,0]/10.0
     y_locs = X_bar[:,1]/10.0
     scat = plt.scatter(x_locs, y_locs, c='r', marker='o', s=1)
-    plt.pause(100)
+    plt.pause(1)
     scat.remove()
 
 # TODO : change so that particles are not intialized in weird spots on map
@@ -100,22 +100,15 @@ def main():
 
     map_obj = MapReader(src_path_map)
     occupancy_map = map_obj.get_map() 
-    print(occupancy_map[600,150])
     logfile = open(src_path_log, 'r')
 
     motion_model = MotionModel()
     sensor_model = SensorModel(occupancy_map)
     resampler = Resampling()
 
-    num_particles = 1
+    num_particles = 20
     #X_bar = init_particles_random(num_particles, occupancy_map)
-    y0_vals = np.ones(shape=(num_particles,1))*4500
-    x0_vals = np.ones(shape=(num_particles,1))*4000
-    theta0_vals = np.random.uniform( -3.14, 3.14, (num_particles, 1) )
-    w0_vals = np.ones( (num_particles,1), dtype=np.float64)
-    w0_vals = w0_vals / num_particles
-    X_bar = np.hstack((x0_vals,y0_vals,theta0_vals,w0_vals))
-    #X_bar = init_particles_freespace(num_particles, occupancy_map)
+    X_bar = init_particles_freespace(num_particles, occupancy_map)
 
     vis_flag = True
 
@@ -167,7 +160,6 @@ def main():
             if (meas_type == "L"):
                 z_t = ranges
                 w_t, xqs, yqs = sensor_model.beam_range_finder_model(z_t, x_t1)
-                #print('w_t =', w_t)
                 X_bar_new[m,:] = np.hstack((x_t1, w_t))
             else:
                 X_bar_new[m,:] = np.hstack((x_t1, X_bar[m,3]))
@@ -180,9 +172,6 @@ def main():
         # X_bar = resampler.low_variance_sampler(X_bar)
         X_bar = resampler.multinomial_sampler(X_bar)
         if vis_flag:
-            xqs = np.reshape(xqs, (len(xqs), 1))
-            yqs = np.reshape(yqs, (len(yqs), 1))
-            X_bar = np.hstack((xqs, yqs))
             visualize_timestep(X_bar, time_idx)
         print('end loop')
 
