@@ -82,28 +82,6 @@ def init_particles_freespace(num_particles, occupancy_map):
 
     return X_bar_init
 
-def precompute_raycasts():
-    src_path_map = '../data/map/wean.dat'
-    map_obj = MapReader(src_path_map)
-    occupancy_map = map_obj.get_map()
-    sensor_model = SensorModel(occupancy_map)
-    height, width = occupancy_map.shape
-    lookup = np.zeros((height,width,360))-1
-    print('begin locs')
-    locs = np.load('locs.npy')
-    print('begin cast')
-    for i in tqdm(range(len(locs))):
-        x, y, theta_idx = locs[i]
-        theta = theta_idx * np.pi / 180
-        if occupancy_map[y,x] != 0:
-            continue
-        z_cast, xq, yq = sensor_model.range_find((x,y,theta), theta)
-        lookup[y,x,theta_idx] = z_cast
-    print('end cast')
-    np.save('lookup_test.npy', lookup)
-
-
-
     
 def main():
 
@@ -204,112 +182,37 @@ def main():
             X_bar = np.hstack((xqs,yqs))
             visualize_timestep(X_bar, time_idx)
         print('end loop')
-
-'''
-def test_motion_model():
-    """
-    Description of variables used
-    u_t0 : particle state odometry reading [x, y, theta] at time (t-1) [odometry_frame]   
-    u_t1 : particle state odometry reading [x, y, theta] at time t [odometry_frame]
-    x_t0 : particle state belief [x, y, theta] at time (t-1) [world_frame]
-    x_t1 : particle state belief [x, y, theta] at time t [world_frame]
-    X_bar : [num_particles x 4] sized array containing [x, y, theta, wt] values for all particles
-    z_t : array of 180 range measurements for each laser scan
-    """
-
-    """
-    Initialize Parameters
-    """
+ 
+def precompute_raycasts():
+    # process map and get dimensions
     src_path_map = '../data/map/wean.dat'
-    src_path_log = '../data/log/robotdata1.log'
-
     map_obj = MapReader(src_path_map)
-    occupancy_map = map_obj.get_map() 
-    logfile = open(src_path_log, 'r')
+    occupancy_map = map_obj.get_map()
+    height, width = occupancy_map.shape
+    print('height = {}, width = {}'.format(height, width))
 
-    motion_model = MotionModel()
+    #initialize sensor model and begin ray casting
     sensor_model = SensorModel(occupancy_map)
-    resampler = Resampling()
+    lookup = np.zeros((height,width,360))-1
 
-    num_particles = 500# 500
-    X_bar = init_particles_random(num_particles, occupancy_map)
-
-    vis_flag = 1 # 1
-
-    """
-    Monte Carlo Localization Algorithm : Main Loop
-    """
-    if vis_flag:
-        visualize_map(occupancy_map)
-        
-    points = []
-
-    first_time_idx = True
-    for time_idx, line in enumerate(logfile):
-
-        # Read a single 'line' from the log file (can be either odometry or laser measurement)
-        meas_type = line[0] # L : laser scan measurement, O : odometry measurement
-        meas_vals = np.fromstring(line[2:], dtype=np.float64, sep=' ') # convert measurement values from string to double
-
-        odometry_robot = meas_vals[0:3] # odometry reading [x, y, theta] in odometry frame
-        time_stamp = meas_vals[-1]
-
-        if ((time_stamp <= 0.0) | (meas_type == "O")): # ignore pure odometry measurements for now (faster debugging) 
+    # x is col index and col = i % width
+    # y is row index and row = i // width
+    print('begin cast')
+    for i in tqdm(range(width*height*360)):
+        y = i // width
+        x = i % width
+        if occupancy_map[y,x] != 0:
             continue
+        for theta in range(360):
+            # range_find expects angle in radians
+            input_theta = theta / np.pi
+            z_cast, xq, yq = sensor_model.range_find((x,y,input_theta), input_theta)
+            lookup[y,x,theta] = z_cast
+    print('end cast')
+    np.save('lookup.npy', lookup)
 
-        if (meas_type == "L"):
-             odometry_laser = meas_vals[3:6] # [x, y, theta] coordinates of laser in odometry frame
-             ranges = meas_vals[6:-1] # 180 range measurement values from single laser scan
-        
-        print("Processing time step " + str(time_idx) + " at time " + str(time_stamp) + "s")
-
-        if (first_time_idx):
-            u_t0 = odometry_robot
-            first_time_idx = False
-            continue
-
-        X_bar_new = np.zeros( (num_particles,4), dtype=np.float64)
-        u_t1 = odometry_robot
-        for m in range(0, num_particles):
-
-            """
-            MOTION MODEL
-            """
-            x_t0 = X_bar[m,0:3]#[m, 0:3]
-            x_t1 = motion_model.update(u_t0, u_t1, x_t0)
-
-            """
-            SENSOR MODEL
-            """
-            if (meas_type == "L"):
-                z_t = ranges
-                w_t, xqs, yqs = sensor_model.beam_range_finder_model(z_t, x_t1)
-                # w_t = 1/num_particles
-                X_bar_new[m,:] = np.hstack((x_t1, w_t))
-            else:
-                X_bar_new[m,:] = np.hstack((x_t1, X_bar[m,3]))
-        #X_bar = np.array([[x_t1[0], x_t1[1], x_t1[2], 1.0]])
-        X_bar = X_bar_new
-        u_t0 = u_t1
-
-        """
-        RESAMPLING
-        """
-        # X_bar = resampler.low_variance_sampler(X_bar)
-
-        if vis_flag:
-            visualize_timestep(X_bar, time_idx)
-            
-        points.append([X_bar[0, 0], X_bar[0, 1]])
-        print('end loop')
-        
-    points = np.array(points)
-    plt.scatter(points[:, 0], points[:, 1], c='r', marker='o')
-
-    '''
-    
+  
 if __name__=="__main__":
     #main()
-    #test_motion_model()
     precompute_raycasts()
 
