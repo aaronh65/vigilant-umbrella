@@ -198,7 +198,7 @@ def precompute_raycasts():
     # x is col index and col = i % width
     # y is row index and row = i // width
     print('begin cast')
-    for i in tqdm(range(width*height*360)):
+    for i in tqdm(range(width*height)):
         y = i // width
         x = i % width
         if occupancy_map[y,x] != 0:
