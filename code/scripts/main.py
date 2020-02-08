@@ -198,16 +198,19 @@ def precompute_raycasts():
     # x is col index and col = i % width
     # y is row index and row = i // width
     print('begin cast')
-    theta_input = [theta/np.pi for theta in range(360)]
+    theta_input = [theta*np.pi/180 for theta in range(360)]
     for i in tqdm(range(width*height)):
-        y = i // width
         x = i % width
+        y = i // width
+        x_map = x * 10
+        y_map = y * 10
         if occupancy_map[y,x] != 0:
             continue
         # range_find expects angle in radians
-        z_casts, xqs, yqs = sensor_model.range_find_angles((x,y,0), theta_input)
+        xqs, yqs, z_casts = sensor_model.range_find_angles((x_map,y_map,0), theta_input)
         for theta, z_cast in zip(range(360), z_casts):
             lookup[y,x,theta] = z_cast
+            #print('z_cast = {} at pose {}, {}, {}'.format(z_cast, x, y, theta))
     print('end cast')
     np.save('lookup.npy', lookup)
 
@@ -222,6 +225,7 @@ def visualize_casts(pose):
     start_angle = theta - np.pi/2
     angles = [(start_angle + n * np.pi/180)%(2*np.pi) for n in range(180)]
     xqs, yqs, z_casts = sensor_model.range_find_angles(laser_pose, angles)
+    print(z_casts)
     scat = plt.scatter(xqs, yqs, c='r', marker='o', s=1)
     plt.pause(100)
 

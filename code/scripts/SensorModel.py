@@ -90,26 +90,26 @@ class SensorModel:
         TODO : Add your code here
         """
         q=0
-        # picking every other measurement for now
-
         x, y, theta = x_t1
         laser_pose = (x + np.cos(theta)*25, y + np.sin(theta)*25, theta)
         start_angle = theta - np.pi/2
-        angles = [start_angle + np.pi/180 * n for n in range(180)]
-        xqs, yqs = list(), list()
-        for idx in range(0, len(angles), self.ray_step):
+        angles = [(start_angle + n * np.pi/180)%(2*np.pi) for n in range(180)]
+        xqs, yqs = np.zeros((1,180)), np.zeros((1,180))
+        z_casts = np.zeros(180)
+        for idx in range(0, 180, self.ray_step):
             # calculate ray cast for the particle @ that angle
             # create probability distribution
             # calculate likelihood for that laser reading
             angle = angles[idx]
-            z_cast, xq, yq = self.range_find(laser_pose, angle)
-            xqs.append(xq)
-            yqs.append(yq)
+            xq, yq, z_cast = self.range_find_one_angle(laser_pose, angle)
+            xqs[0,idx] = xq
+            yqs[0,idx] = yq
+            z_casts[idx] = z_cast
             meas = z_t1_arr[idx]
             prob = self.getProbability(z_cast, meas)
             #print('z_cast = {}, meas = {}, prob = {}'.format(z_cast,meas,prob))
             q += np.log(prob)
-        return q, xqs, yqs   
+        return q, xqs, yqs, z_casts
 
     
     def range_find_one_angle(self, pose, angle):
