@@ -32,6 +32,14 @@ class SensorModel:
         self.norm = norm
         self.ray_step = 10
 
+    def visualize_dist(self):
+        measurements = np.arange(0,self.range,1) + 1
+        cast = np.arange(0, self.range,1)
+        probs = self.getProbability(cast, measurements)
+        plt.plot(measurements, dist)
+        plt.show()
+
+
     def wrap(self, angle):
         """
         param[in] angle : angle value in range [-inf, inf]
@@ -85,7 +93,7 @@ class SensorModel:
         # picking every other measurement for now
 
         x, y, theta = x_t1
-        laser_origin = (x + np.cos(theta)*25, y + np.sin(theta)*25, theta)
+        laser_pose = (x + np.cos(theta)*25, y + np.sin(theta)*25, theta)
         start_angle = theta - np.pi/2
         angles = [start_angle + np.pi/180 * n for n in range(180)]
         xqs, yqs = list(), list()
@@ -94,7 +102,7 @@ class SensorModel:
             # create probability distribution
             # calculate likelihood for that laser reading
             angle = angles[idx]
-            z_cast, xq, yq = self.range_find(laser_origin, angle)
+            z_cast, xq, yq = self.range_find(laser_pose, angle)
             xqs.append(xq)
             yqs.append(yq)
             meas = z_t1_arr[idx]
@@ -103,15 +111,14 @@ class SensorModel:
             q += np.log(prob)
         return q, xqs, yqs   
 
-    def visualize(self):
-        measurements = np.arange(0,self.range,1) + 1
-        cast = np.arange(0, self.range,1)
-        probs = self.getProbability(cast, measurements)
-        plt.plot(measurements, dist)
-        plt.show()
-
-    def range_find(self, laser_origin, angle):
-        x, y, theta = laser_origin
+    
+    def range_find_one_angle(self, pose, angle):
+        """ Find the ray cast at a pose at heading angle
+            pose: in continuous coordinates
+            angle: ray cast angle in radians
+        """
+        # robot heading not used since query angle is given
+        x, y, _ = pose 
         sample_rate = 10
         z_cast = 0
         xq = np.round(x/10).astype(int)
@@ -122,7 +129,22 @@ class SensorModel:
             xq = np.round((x + dx)/10).astype(int)
             yq = np.round((y + dy)/10).astype(int)
             z_cast += sample_rate
-        return z_cast, xq*10, yq*10
+        return xq, yq, z_cast
+
+    def range_find_angles(self, pose, angles):
+        """ Find the ray cast at a pose over multiple angles
+            laser_pose:  in continuous coordinates
+            angles: ray cast angles in radians
+        """
+        num_casts = len(angles)
+        xqs, yqs = np.zeros(num_casts), np.zeros(num_casts)
+        z_casts = np.zeros(num_casts)
+        for i, angle in enumerate(angles):
+            xq, yq, z_cast = self.range_find_one_angle(pose, angle)
+            xqs[i] = xq
+            yqs[i] = yq
+            z_casts[i] = z_cast
+        return xqs, yqs, z_casts
 
 if __name__=='__main__':
     model = SensorModel(None)

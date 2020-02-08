@@ -10,6 +10,8 @@ from Resampling import Resampling
 
 from matplotlib import pyplot as plt
 from matplotlib import figure as fig
+
+from utils import get_occupancy_map
 import time
 
 def visualize_map(occupancy_map):
@@ -24,7 +26,7 @@ def visualize_timestep(X_bar, tstep):
     y_locs = X_bar[:,1]/10.0
     scat = plt.scatter(x_locs, y_locs, c='r', marker='o', s=1)
     #plt.pause(0.00001)
-    plt.pause(100)
+    plt.pause(10)
     scat.remove()
 
 # TODO : change so that particles are not intialized in weird spots on map
@@ -185,9 +187,7 @@ def main():
  
 def precompute_raycasts():
     # process map and get dimensions
-    src_path_map = '../data/map/wean.dat'
-    map_obj = MapReader(src_path_map)
-    occupancy_map = map_obj.get_map()
+    occupancy_map = get_occupancy_map()
     height, width = occupancy_map.shape
     print('height = {}, width = {}'.format(height, width))
 
@@ -198,21 +198,75 @@ def precompute_raycasts():
     # x is col index and col = i % width
     # y is row index and row = i // width
     print('begin cast')
+    theta_input = [theta/np.pi for theta in range(360)]
     for i in tqdm(range(width*height)):
         y = i // width
         x = i % width
         if occupancy_map[y,x] != 0:
             continue
-        for theta in range(360):
-            # range_find expects angle in radians
-            input_theta = theta / np.pi
-            z_cast, xq, yq = sensor_model.range_find((x,y,input_theta), input_theta)
+        # range_find expects angle in radians
+        z_casts, xqs, yqs = sensor_model.range_find_angles((x,y,0), theta_input)
+        for theta, z_cast in zip(range(360), z_casts):
             lookup[y,x,theta] = z_cast
     print('end cast')
     np.save('lookup.npy', lookup)
 
+def visualize_casts(pose):
+    # get map and init sensor model
+    occupancy_map = get_occupancy_map()
+    sensor_model = SensorModel(occupancy_map)
+    visualize_map(occupancy_map)
+
+    x, y, theta = pose
+    laser_pose = (x + np.cos(theta)*25, y + np.sin(theta)*25, theta)
+    start_angle = theta - np.pi/2
+    angles = [(start_angle + n * np.pi/180)%(2*np.pi) for n in range(180)]
+    xqs, yqs, z_casts = sensor_model.range_find_angles(laser_pose, angles)
+    scat = plt.scatter(xqs, yqs, c='r', marker='o', s=1)
+    plt.pause(100)
+
+
+def visualize_casts_from_lookup(pose):
+    ''' Visualize raycasts. 
+        Input
+            pose: expected in continuous frame (not map frame)
+    '''
+
+    lookup = np.load('lookup.npy')
+    occupancy_map = get_occupancy_map()
+    height, width = occupancy_map.shape
+    visualize_map(occupancy_map)
+
+    # round theta to the nearest pi/180 increment
+    x, y, theta = pose
+    theta = np.round(theta * 180 / np.pi) * np.pi / 180
+    x_laser = x + np.cos(theta) * 25
+    y_laser = y + np.sin(theta) * 25
+    start_angle = theta - np.pi / 2
+    angles = [(start_angle + n * np.pi/180)%(2*np.pi) for n in range(180)]
+    print(angles)
+
+    x_laser_map = int(x_laser/10)
+    y_laser_map = int(y_laser/10)
+
+    xqs = np.zeros((1,len(angles)))
+    yqs = np.zeros((1,len(angles)))
+    for i, angle in enumerate(angles):
+        angle_deg = np.round(angle * 180 / np.pi).astype(int)
+        z_cast = lookup[y_laser_map,x_laser_map,angle_deg]
+        print('{} at angle {}'.format(z_cast, angle_deg))
+        xq = x_laser + z_cast * np.cos(angle)
+        yq = y_laser + z_cast * np.sin(angle)
+        xqs[0,i] = int(xq/10)
+        yqs[0,i] = int(yq/10)
+
+    scat = plt.scatter(xqs, yqs, c='r', marker='o', s=1)
+    plt.pause(100)
+
   
 if __name__=="__main__":
     #main()
-    precompute_raycasts()
+    #precompute_raycasts()
+    #visualize_casts((4000,4000,1*np.pi/4))
+    visualize_casts_from_lookup((4000,4000,0))
 
