@@ -22,10 +22,11 @@ class SensorModel:
         # initialize all the parameters for the sensor model except the mean (comes from the raycasted val)
         # w1 w2 w3 w4 sigma lambda range
         self.w1 = 100
-        self.w2 = 2
-        self.w3 = 5
+        self.w2 = 5
+        self.w3 = 2
         self.w4 = 500
         self.sigma = 50
+        self.norm = norm
         self.lmbda = 0.01
         self.map = occupancy_map
         self.range = 8190
@@ -64,8 +65,8 @@ class SensorModel:
     def getProbability(self, ray, meas):
         # gauss
         if 0 < meas < self.range:
-            gauss_norm = norm(loc=ray, scale=self.sigma).cdf(self.range) - norm(loc=ray, scale=self.sigma).cdf(0)
-            gauss = norm(loc=ray, scale=self.sigma).pdf(meas) / gauss_norm
+            gauss_norm = self.norm.cdf(self.range, loc=ray, scale=self.sigma) - self.norm.cdf(0,loc=ray, scale=self.sigma)
+            gauss = self.norm.pdf(meas,loc=ray, scale=self.sigma) / gauss_norm
         else:
             gauss = 0
 
@@ -88,6 +89,7 @@ class SensorModel:
         else:
             p_rand = 0
         p = self.w1*gauss + self.w2*exp + self.w3*p_max + self.w4*p_rand
+        p /= (self.w1 + self.w2 + self.w3 + self.w4)
         return p
 
     def beam_range_finder_model(self, z_t1_arr, x_t1):
@@ -140,16 +142,14 @@ class SensorModel:
                 z_casts[idx] = z_cast
                 meas = z_t1_arr[idx]
                 prob = self.getProbability(z_cast, meas)
-                q += np.log(prob)
-                '''
+                q -= np.log(1-prob)
                 angle_rad = angle * np.pi/180
                 dx = z_cast * np.cos(angle_rad)
                 dy = z_cast * np.sin(angle_rad)
                 xqs[0,idx] = np.round(x + dx).astype(int)
                 yqs[0,idx] = np.round(y + dy).astype(int)
-                '''
             #print(time.time()-begin)
-        q = np.exp(q)
+        #q = np.exp(q)
         return q, xqs, yqs, z_casts
 
     
@@ -189,5 +189,4 @@ class SensorModel:
         return xqs, yqs, z_casts
 
 if __name__=='__main__':
-    model = SensorModel(None)
-    model.visualize()
+    pass

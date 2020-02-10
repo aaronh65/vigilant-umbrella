@@ -18,16 +18,22 @@ def visualize_map(occupancy_map):
     fig = plt.figure()
     # plt.switch_backend('TkAgg')
     mng = plt.get_current_fig_manager();  # mng.resize(*mng.window.maxsize())
-    plt.ion(); plt.imshow(occupancy_map, cmap='Greys'); plt.axis([0, 800, 0, 800]);
+    plt.ion(); 
+    plt.imshow(occupancy_map, cmap='Greys'); plt.axis([0, 800, 0, 800]);
 
 
-def visualize_timestep(X_bar, tstep):
+def visualize_timestep(X_bar, tstep, xqs=None,yqs=None):
     x_locs = X_bar[:,0]/10.0
     y_locs = X_bar[:,1]/10.0
     scat = plt.scatter(x_locs, y_locs, c='r', marker='o', s=1)
-    plt.pause(0.00001)
+    if xqs is not None:
+        scat2 = plt.scatter(xqs/10, yqs/10, c='b', marker='o', s=1)
+    plt.pause(0.1)
     #plt.pause(10)
+    plt.title('timestep {}'.format(tstep))
     scat.remove()
+    if xqs is not None:
+        scat2.remove()
 
 # TODO : change so that particles are not intialized in weird spots on map
 def init_particles_random(num_particles, occupancy_map):
@@ -66,8 +72,8 @@ def init_particles_freespace(num_particles, occupancy_map):
     new_num_particles = num_particles
     while len(y0_vals) < num_particles:
         # initialize [x, y] positions in world_frame for all particles
-        y0_rand = np.random.uniform( 1500, 6500, (new_num_particles, 1) )
-        x0_rand = np.random.uniform( 1500, 6500, (new_num_particles, 1) )
+        y0_rand = np.random.uniform( 3500, 4500, (new_num_particles, 1) )
+        x0_rand = np.random.uniform( 3500, 4500, (new_num_particles, 1) )
 
         for i in range(new_num_particles):
             if occupancy_map[np.round(y0_rand[i]/10.0).astype(np.int64), np.round(x0_rand[i]/10.0).astype(np.int64)] == 0:
@@ -112,7 +118,7 @@ def main():
     sensor_model = SensorModel(occupancy_map, lookup_flag=True)
     resampler = Resampling()
 
-    num_particles = 500
+    num_particles = 1
     #X_bar = init_particles_random(num_particles, occupancy_map)
     X_bar = init_particles_freespace(num_particles, occupancy_map)
     #X_bar = np.array([[6500,1500,1*np.pi/2,1]])
@@ -128,7 +134,7 @@ def main():
 
     first_time_idx = True
     for time_idx, line in enumerate(logfile):
-        vis_flag = count % 2 == 0
+        vis_flag = count % 5 == 0
         #vis_flag = False
         
         count += 1
@@ -140,7 +146,7 @@ def main():
         odometry_robot = meas_vals[0:3] # odometry reading [x, y, theta] in odometry frame
         time_stamp = meas_vals[-1]
 
-        if ((time_stamp <= 0.0)): # ignore pure odometry measurements for now (faster debugging) 
+        if ((time_stamp <= 0.0) or meas_type == "O"): # ignore pure odometry measurements for now (faster debugging) 
             continue
 
         if (meas_type == "L"):
@@ -198,7 +204,8 @@ def main():
             #xqs = np.reshape(xqs, (180, 1))
             #yqs = np.reshape(yqs, (180, 1))
             #X_bar = np.hstack((xqs,yqs))
-            visualize_timestep(X_bar, time_idx)
+            print(xqs)
+            visualize_timestep(X_bar, time_idx, xqs, yqs)
  
 def precompute_raycasts():
     # process map and get dimensions
@@ -288,5 +295,5 @@ if __name__=="__main__":
     main()
     #precompute_raycasts()
     #visualize_casts((4000,4000,1*np.pi/4))
-    #visualize_casts_from_lookup((6500,1500,np.pi))
+    visualize_casts_from_lookup((6500,1500,np.pi))
 
