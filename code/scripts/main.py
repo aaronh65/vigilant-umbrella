@@ -66,8 +66,8 @@ def init_particles_freespace(num_particles, occupancy_map):
     new_num_particles = num_particles
     while len(y0_vals) < num_particles:
         # initialize [x, y] positions in world_frame for all particles
-        y0_rand = np.random.uniform( 3500, 4500, (new_num_particles, 1) )
-        x0_rand = np.random.uniform( 3500, 4500, (new_num_particles, 1) )
+        y0_rand = np.random.uniform( 1500, 6500, (new_num_particles, 1) )
+        x0_rand = np.random.uniform( 1500, 6500, (new_num_particles, 1) )
 
         for i in range(new_num_particles):
             if occupancy_map[np.round(y0_rand[i]/10.0).astype(np.int64), np.round(x0_rand[i]/10.0).astype(np.int64)] == 0:
@@ -112,7 +112,7 @@ def main():
     sensor_model = SensorModel(occupancy_map, lookup_flag=True)
     resampler = Resampling()
 
-    num_particles = 200
+    num_particles = 500
     #X_bar = init_particles_random(num_particles, occupancy_map)
     X_bar = init_particles_freespace(num_particles, occupancy_map)
     #X_bar = np.array([[6500,1500,1*np.pi/2,1]])
@@ -128,7 +128,7 @@ def main():
 
     first_time_idx = True
     for time_idx, line in enumerate(logfile):
-        vis_flag = count % 5 == 0
+        vis_flag = count % 2 == 0
         #vis_flag = False
         
         count += 1
@@ -140,7 +140,7 @@ def main():
         odometry_robot = meas_vals[0:3] # odometry reading [x, y, theta] in odometry frame
         time_stamp = meas_vals[-1]
 
-        if ((time_stamp <= 0.0) | (meas_type == "O")): # ignore pure odometry measurements for now (faster debugging) 
+        if ((time_stamp <= 0.0)): # ignore pure odometry measurements for now (faster debugging) 
             continue
 
         if (meas_type == "L"):
@@ -184,6 +184,7 @@ def main():
                 X_bar_new[m,:] = np.hstack((x_t1, w_t))
             else:
                 X_bar_new[m,:] = np.hstack((x_t1, X_bar[m,3]))
+            #print(w_t)
         X_bar = X_bar_new
         u_t0 = u_t1
 

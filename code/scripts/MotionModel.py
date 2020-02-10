@@ -15,10 +15,10 @@ class MotionModel:
         TODO : Initialize Motion Model parameters here (e.g. alpha1, 2, 3, and 4, user-defined)
         """
         
-        self.a1 = 0.1#2
-        self.a2 = 0.1#2
-        self.a3 = 0.1#2
-        self.a4 = 0.1#2
+        self.a1 = 0.05
+        self.a2 = 0.04
+        self.a3 = 0.05
+        self.a4 = 0.07
 
     def wrap(self, angle):
         """
@@ -52,16 +52,16 @@ class MotionModel:
         xbp, ybp, thbp = u_t1
         
         dr1 = np.arctan2(ybp - yb, xbp - xb) - thb
-        dr1 = self.wrap(dr1)
+        #dr1 = self.wrap(dr1)
         dt = np.sqrt(np.power(xb - xbp, 2) + np.power(yb - ybp, 2))
         dr2 = thbp - thb - dr1
-        dr2 = self.wrap(dr2)
+        #dr2 = self.wrap(dr2)
         
         dhr1 = dr1 - np.random.normal(scale=self.a1 * dr1**2 + self.a2*dt**2)
-        dhr1 = self.wrap(dhr1)
+        #dhr1 = self.wrap(dhr1)
         dht = dt - np.random.normal(scale=self.a3 * dt**2 + self.a4 * dr1**2 + self.a4 * dr2**2)
         dhr2 = dr2 - np.random.normal(scale=self.a1 * dr2**2 + self.a2 * dt**2)
-        dhr2 = self.wrap(dhr2)
+        #dhr2 = self.wrap(dhr2)
         
         x, y, th = x_t0
         
@@ -71,10 +71,10 @@ class MotionModel:
         #print(y, dht, th+dhr1)
         thp = th + dhr1 + dhr2
         #print(th, dhr1+dhr2)
-        thp = self.wrap(thp)
+        #thp = self.wrap(thp)
         
-        x_t1 = [xp, yp, thp]
-
+        x_t1 = np.array([xp, yp, thp])
+        #x_t1 = np.reshape(x_t1, (3,1))
         return x_t1
 
 if __name__=="__main__":

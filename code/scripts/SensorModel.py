@@ -21,16 +21,15 @@ class SensorModel:
         """
         # initialize all the parameters for the sensor model except the mean (comes from the raycasted val)
         # w1 w2 w3 w4 sigma lambda range
-        self.w1 = 0.7
-        self.w2 = 0.275
-        self.w3 = 0.02
-        self.w4 = 0.005
+        self.w1 = 100
+        self.w2 = 2
+        self.w3 = 5
+        self.w4 = 500
         self.sigma = 50
-        self.lmbda = 0.001
+        self.lmbda = 0.01
         self.map = occupancy_map
         self.range = 8190
-        self.norm = norm
-        self.ray_step = 10
+        self.ray_step = 5
         if lookup_flag:
             self.lookup = np.load('lookup_zero.npy')
         else:
@@ -63,25 +62,32 @@ class SensorModel:
 
     # calculates the probability of your measurement given sensor model pdf based on the raycasted mean val
     def getProbability(self, ray, meas):
-        #gauss = 1/np.sqrt(2*np.pi*self.sigma**2) * np.exp(-(meas-ray)**2/(2*self.sigma**2))
-        #gauss /= 
-        gauss = self.norm.pdf(meas, loc=ray, scale=self.sigma)
-        gauss_norm = self.norm.cdf(self.range, loc=ray, scale=self.sigma) - self.norm.cdf(0, loc=ray, scale=self.sigma)
-        gauss = gauss / gauss_norm / self.sigma
-        exp = 0
-        if meas < ray:
+        # gauss
+        if 0 < meas < self.range:
+            gauss_norm = norm(loc=ray, scale=self.sigma).cdf(self.range) - norm(loc=ray, scale=self.sigma).cdf(0)
+            gauss = norm(loc=ray, scale=self.sigma).pdf(meas) / gauss_norm
+        else:
+            gauss = 0
+
+        # short
+        if 0 < meas < ray:
             exp = self.lmbda*np.exp(-self.lmbda*meas)
             exp *= 1/(1-np.exp(-self.lmbda*ray))
-        p_max = 0
+        else:
+            exp = 0
+
+        # out of range
         if np.abs(meas - self.range) <= 1:
             p_max = 1
-        p_rand = 0
+        else:
+            p_max = 0
+
+        # random
         if (meas > 0 and meas < self.range):
             p_rand = 1/self.range
+        else:
+            p_rand = 0
         p = self.w1*gauss + self.w2*exp + self.w3*p_max + self.w4*p_rand
-        if p == 1:
-            print('PROBABILITY OVER ONE')
-        #p = gauss
         return p
 
     def beam_range_finder_model(self, z_t1_arr, x_t1):
@@ -103,7 +109,7 @@ class SensorModel:
             #print('None')
             start_angle = theta - np.pi/2
             angles = [(start_angle + n * np.pi/180)%(2*np.pi) for n in range(180)]
-            begin = time.time()
+            #begin = time.time()
             for idx in range(0, 180, self.ray_step):
                 # calculate ray cast for the particle @ that angle
                 # create probability distribution
@@ -117,7 +123,7 @@ class SensorModel:
                 prob = self.getProbability(z_cast, meas)
                 #print('z_cast = {}, meas = {}, prob = {}'.format(z_cast,meas,prob))
                 q += np.log(prob)
-            print(time.time()-begin)
+            #print(time.time()-begin)
         else:
             #print('not None')
             x_map = int(x/10)
@@ -129,6 +135,8 @@ class SensorModel:
             for idx in range(0, 180, self.ray_step):
                 angle = angles[idx]
                 z_cast = self.lookup[y_map,x_map,angle]
+                if z_cast == -1:
+                    print('wack')
                 z_casts[idx] = z_cast
                 meas = z_t1_arr[idx]
                 prob = self.getProbability(z_cast, meas)
@@ -141,6 +149,7 @@ class SensorModel:
                 yqs[0,idx] = np.round(y + dy).astype(int)
                 '''
             #print(time.time()-begin)
+        q = np.exp(q)
         return q, xqs, yqs, z_casts
 
     
