@@ -19,21 +19,29 @@ def visualize_map(occupancy_map):
     # plt.switch_backend('TkAgg')
     mng = plt.get_current_fig_manager();  # mng.resize(*mng.window.maxsize())
     plt.ion(); 
-    plt.imshow(occupancy_map, cmap='Greys'); plt.axis([0, 800, 0, 800]);
+    plt.imshow(occupancy_map, cmap='Greys'); 
+    plt.axis([0, 800, 0, 800]);
 
 
-def visualize_timestep(X_bar, tstep, xqs=None,yqs=None):
+def visualize_timestep(X_bar, tstep, xqs=None,yqs=None, xms=None, yms=None):
     x_locs = X_bar[:,0]/10.0
     y_locs = X_bar[:,1]/10.0
     scat = plt.scatter(x_locs, y_locs, c='r', marker='o', s=1)
     if xqs is not None:
-        scat2 = plt.scatter(xqs/10, yqs/10, c='b', marker='o', s=1)
-    plt.pause(0.1)
-    #plt.pause(10)
+        scat2 = plt.scatter(xqs, yqs, c='b', marker='o', s=1)
+    if xms is not None:
+        scat3 = plt.scatter(xms/10, yms/10, c='g', marker='o', s=1)
+
+    plt.pause(1000)
+    #plt.pause(0.01)
     plt.title('timestep {}'.format(tstep))
+    plt.savefig('plots/time_{}'.format(tstep))
     scat.remove()
     if xqs is not None:
         scat2.remove()
+    if xms is not None:
+        scat3.remove()
+
 
 # TODO : change so that particles are not intialized in weird spots on map
 def init_particles_random(num_particles, occupancy_map):
@@ -67,21 +75,23 @@ def init_particles_freespace(num_particles, occupancy_map):
     x0_vals = []
 
     # initialize angle [theta] in world_frame for all particles
-    theta0_vals = np.random.uniform( -3.14, 3.14, (num_particles, 1) )
+    #theta0_vals = np.random.uniform( -3.14, 3.14, (num_particles, 1) )
+    theta0_vals = np.random.uniform( np.pi-0.01, np.pi+0.01, (num_particles, 1) )
 
     new_num_particles = num_particles
     while len(y0_vals) < num_particles:
         # initialize [x, y] positions in world_frame for all particles
-        y0_rand = np.random.uniform( 3500, 4500, (new_num_particles, 1) )
-        x0_rand = np.random.uniform( 3500, 4500, (new_num_particles, 1) )
+        y0_rand = np.random.uniform( 4000, 4010, (new_num_particles, 1) )
+        x0_rand = np.random.uniform( 4150, 4160, (new_num_particles, 1) )
 
         for i in range(new_num_particles):
-            if occupancy_map[np.round(y0_rand[i]/10.0).astype(np.int64), np.round(x0_rand[i]/10.0).astype(np.int64)] == 0:
+            y_map = np.round(y0_rand[i]/10.0).astype(np.int64)
+            x_map = np.round(x0_rand[i]/10.0).astype(np.int64)
+            if 0 <= occupancy_map[y_map, x_map] <= 0.1:
                 if len(y0_vals) < num_particles:
                     y0_vals.append(y0_rand[i])
                     x0_vals.append(x0_rand[i])
-
-        new_num_particles = num_particles
+        new_num_particles = num_particles-len(y0_vals)
 
     y0_vals = np.array(y0_vals)
     x0_vals = np.array(x0_vals)
@@ -115,7 +125,7 @@ def main():
     #lookup = np.load('lookup_zero.npy')
 
     motion_model = MotionModel()
-    sensor_model = SensorModel(occupancy_map, lookup_flag=True)
+    sensor_model = SensorModel(occupancy_map, lookup_flag=False)
     resampler = Resampling()
 
     num_particles = 1
@@ -134,7 +144,7 @@ def main():
 
     first_time_idx = True
     for time_idx, line in enumerate(logfile):
-        vis_flag = count % 5 == 0
+        vis_flag = count % 1 == 0
         #vis_flag = False
         
         count += 1
@@ -147,6 +157,7 @@ def main():
         time_stamp = meas_vals[-1]
 
         if ((time_stamp <= 0.0) or meas_type == "O"): # ignore pure odometry measurements for now (faster debugging) 
+        #if ((time_stamp <= 0.0)): # ignore pure odometry measurements for now (faster debugging) 
             continue
 
         if (meas_type == "L"):
@@ -174,7 +185,7 @@ def main():
 
             x = int(x_t1[0]/10)
             y = int(x_t1[1]/10)
-            if occupancy_map[y, x] != 0 and meas_type == "L":
+            if not(0 <= occupancy_map[y, x] <= 0.2) and meas_type == "L":
                 #print('dumping particle')
                 w_t = 0
                 X_bar_new[m, :] = np.hstack((x_t1, w_t))
@@ -186,7 +197,8 @@ def main():
             
             if (meas_type == "L"):
                 z_t = ranges
-                w_t, xqs, yqs, z_casts = sensor_model.beam_range_finder_model(z_t, x_t1)
+                w_t, xqs, yqs, xms, yms, z_casts = sensor_model.beam_range_finder_model(z_t, x_t1)
+                print('w_t =',w_t)
                 X_bar_new[m,:] = np.hstack((x_t1, w_t))
             else:
                 X_bar_new[m,:] = np.hstack((x_t1, X_bar[m,3]))
@@ -198,14 +210,16 @@ def main():
         """
         RESAMPLING
         """
-        # X_bar = resampler.low_variance_sampler(X_bar)
-        X_bar = resampler.multinomial_sampler(X_bar)
+        if (meas_type == "L"):
+            X_bar = resampler.low_variance_sampler(X_bar)
+        #X_bar = resampler.multinomial_sampler(X_bar)
         if vis_flag:
             #xqs = np.reshape(xqs, (180, 1))
             #yqs = np.reshape(yqs, (180, 1))
             #X_bar = np.hstack((xqs,yqs))
-            print(xqs)
-            visualize_timestep(X_bar, time_idx, xqs, yqs)
+            visualize_timestep(X_bar, time_idx, xqs, yqs, xms, yms)
+            #visualize_timestep(X_bar, time_idx)
+            break
  
 def precompute_raycasts():
     # process map and get dimensions
@@ -295,5 +309,5 @@ if __name__=="__main__":
     main()
     #precompute_raycasts()
     #visualize_casts((4000,4000,1*np.pi/4))
-    visualize_casts_from_lookup((6500,1500,np.pi))
+    #visualize_casts_from_lookup((6500,1500,np.pi))
 
