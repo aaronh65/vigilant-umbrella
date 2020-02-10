@@ -66,8 +66,8 @@ def init_particles_freespace(num_particles, occupancy_map):
     new_num_particles = num_particles
     while len(y0_vals) < num_particles:
         # initialize [x, y] positions in world_frame for all particles
-        y0_rand = np.random.uniform( 0, 7000, (new_num_particles, 1) )
-        x0_rand = np.random.uniform( 3000, 7000, (new_num_particles, 1) )
+        y0_rand = np.random.uniform( 3500, 4500, (new_num_particles, 1) )
+        x0_rand = np.random.uniform( 3500, 4500, (new_num_particles, 1) )
 
         for i in range(new_num_particles):
             if occupancy_map[np.round(y0_rand[i]/10.0).astype(np.int64), np.round(x0_rand[i]/10.0).astype(np.int64)] == 0:
@@ -106,18 +106,19 @@ def main():
     map_obj = MapReader(src_path_map)
     occupancy_map = map_obj.get_map() 
     logfile = open(src_path_log, 'r')
-    lookup = np.load('lookup_zero.npy')
+    #lookup = np.load('lookup_zero.npy')
 
     motion_model = MotionModel()
-    sensor_model = SensorModel(occupancy_map, lookup)
+    sensor_model = SensorModel(occupancy_map, lookup_flag=True)
     resampler = Resampling()
 
-    num_particles = 50
+    num_particles = 200
     #X_bar = init_particles_random(num_particles, occupancy_map)
     X_bar = init_particles_freespace(num_particles, occupancy_map)
     #X_bar = np.array([[6500,1500,1*np.pi/2,1]])
 
     vis_flag = True
+    count = 0
 
     """
     Monte Carlo Localization Algorithm : Main Loop
@@ -127,7 +128,10 @@ def main():
 
     first_time_idx = True
     for time_idx, line in enumerate(logfile):
-        vis_flag = time_idx%1 == 0
+        vis_flag = count % 5 == 0
+        #vis_flag = False
+        
+        count += 1
             
         # Read a single 'line' from the log file (can be either odometry or laser measurement)
         meas_type = line[0] # L : laser scan measurement, O : odometry measurement
@@ -153,6 +157,7 @@ def main():
         X_bar_new = np.zeros( (num_particles,4), dtype=np.float64)
         u_t1 = odometry_robot
         for m in range(0, num_particles):
+            #print(m)
             """
             MOTION MODEL
             """
@@ -164,6 +169,7 @@ def main():
             x = int(x_t1[0]/10)
             y = int(x_t1[1]/10)
             if occupancy_map[y, x] != 0 and meas_type == "L":
+                #print('dumping particle')
                 w_t = 0
                 X_bar_new[m, :] = np.hstack((x_t1, w_t))
                 continue
@@ -192,7 +198,6 @@ def main():
             #yqs = np.reshape(yqs, (180, 1))
             #X_bar = np.hstack((xqs,yqs))
             visualize_timestep(X_bar, time_idx)
-        print('end loop')
  
 def precompute_raycasts():
     # process map and get dimensions
@@ -247,6 +252,7 @@ def visualize_casts_from_lookup(pose):
     '''
 
     lookup = np.load('lookup_zero.npy')
+    print(lookup[0,0,0])
     occupancy_map = get_occupancy_map()
     height, width = occupancy_map.shape
     visualize_map(occupancy_map)
@@ -258,7 +264,6 @@ def visualize_casts_from_lookup(pose):
     y_laser = y + np.sin(theta) * 25
     start_angle = theta - np.pi / 2
     angles = [(start_angle + n * np.pi/180)%(2*np.pi) for n in range(180)]
-    print(angles)
 
     x_laser_map = int(x_laser/10)
     y_laser_map = int(y_laser/10)
@@ -268,7 +273,7 @@ def visualize_casts_from_lookup(pose):
     for i, angle in enumerate(angles):
         angle_deg = np.round(angle * 180 / np.pi).astype(int)
         z_cast = lookup[y_laser_map,x_laser_map,angle_deg]
-        print('{} at angle {}'.format(z_cast, angle_deg))
+        #print('{} at angle {}'.format(z_cast, angle_deg))
         xq = x_laser + z_cast * np.cos(angle)
         yq = y_laser + z_cast * np.sin(angle)
         xqs[0,i] = int(xq/10)
@@ -276,7 +281,7 @@ def visualize_casts_from_lookup(pose):
 
     scat = plt.scatter(xqs, yqs, c='r', marker='o', s=1)
     plt.pause(100)
-
+    
   
 if __name__=="__main__":
     main()

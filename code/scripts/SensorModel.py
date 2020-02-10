@@ -14,24 +14,28 @@ class SensorModel:
     [Chapter 6.3]
     """
 
-    def __init__(self, occupancy_map, lookup=None):
+    def __init__(self, occupancy_map, lookup_flag=False):
 
         """
         TODO : Initialize Sensor Model parameters here
         """
         # initialize all the parameters for the sensor model except the mean (comes from the raycasted val)
         # w1 w2 w3 w4 sigma lambda range
-        self.w1 = 0.8
-        self.w2 = 0.175
+        self.w1 = 0.7
+        self.w2 = 0.275
         self.w3 = 0.02
         self.w4 = 0.005
-        self.sigma = 20
+        self.sigma = 50
         self.lmbda = 0.001
         self.map = occupancy_map
         self.range = 8190
         self.norm = norm
         self.ray_step = 10
-        self.lookup = lookup
+        if lookup_flag:
+            self.lookup = np.load('lookup_zero.npy')
+        else:
+            self.lookup = None
+
 
     def visualize_dist(self):
         measurements = np.arange(0,self.range,1) + 1
@@ -96,8 +100,10 @@ class SensorModel:
         xqs, yqs = np.zeros((1,180)), np.zeros((1,180))
         z_casts = np.zeros(180)
         if self.lookup is None:
+            #print('None')
             start_angle = theta - np.pi/2
             angles = [(start_angle + n * np.pi/180)%(2*np.pi) for n in range(180)]
+            begin = time.time()
             for idx in range(0, 180, self.ray_step):
                 # calculate ray cast for the particle @ that angle
                 # create probability distribution
@@ -111,22 +117,30 @@ class SensorModel:
                 prob = self.getProbability(z_cast, meas)
                 #print('z_cast = {}, meas = {}, prob = {}'.format(z_cast,meas,prob))
                 q += np.log(prob)
+            print(time.time()-begin)
         else:
+            #print('not None')
             x_map = int(x/10)
             y_map = int(y/10)
             start_angle = np.round((theta-np.pi/2)*180/np.pi).astype(int)
             angles = [(start_angle + n)%360 for n in range(180)]
-            for idx, angle in enumerate(angles):
+            #begin = time.time()
+            #for idx, angle in enumerate(angles):
+            for idx in range(0, 180, self.ray_step):
+                angle = angles[idx]
                 z_cast = self.lookup[y_map,x_map,angle]
+                z_casts[idx] = z_cast
                 meas = z_t1_arr[idx]
                 prob = self.getProbability(z_cast, meas)
                 q += np.log(prob)
+                '''
                 angle_rad = angle * np.pi/180
                 dx = z_cast * np.cos(angle_rad)
                 dy = z_cast * np.sin(angle_rad)
                 xqs[0,idx] = np.round(x + dx).astype(int)
                 yqs[0,idx] = np.round(y + dy).astype(int)
-                z_casts[idx] = z_cast
+                '''
+            #print(time.time()-begin)
         return q, xqs, yqs, z_casts
 
     
