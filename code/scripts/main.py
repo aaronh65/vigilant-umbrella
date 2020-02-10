@@ -25,8 +25,8 @@ def visualize_timestep(X_bar, tstep):
     x_locs = X_bar[:,0]/10.0
     y_locs = X_bar[:,1]/10.0
     scat = plt.scatter(x_locs, y_locs, c='r', marker='o', s=1)
-    #plt.pause(0.00001)
-    plt.pause(10)
+    plt.pause(0.00001)
+    #plt.pause(10)
     scat.remove()
 
 # TODO : change so that particles are not intialized in weird spots on map
@@ -106,15 +106,16 @@ def main():
     map_obj = MapReader(src_path_map)
     occupancy_map = map_obj.get_map() 
     logfile = open(src_path_log, 'r')
+    lookup = np.load('lookup_zero.npy')
 
     motion_model = MotionModel()
-    sensor_model = SensorModel(occupancy_map)
+    sensor_model = SensorModel(occupancy_map, lookup)
     resampler = Resampling()
 
-    num_particles = 1
+    num_particles = 50
     #X_bar = init_particles_random(num_particles, occupancy_map)
-    #X_bar = init_particles_freespace(num_particles, occupancy_map)
-    X_bar = np.array([[6500,1500,0*np.pi/2,1]])
+    X_bar = init_particles_freespace(num_particles, occupancy_map)
+    #X_bar = np.array([[6500,1500,1*np.pi/2,1]])
 
     vis_flag = True
 
@@ -126,7 +127,8 @@ def main():
 
     first_time_idx = True
     for time_idx, line in enumerate(logfile):
-
+        vis_flag = time_idx%1 == 0
+            
         # Read a single 'line' from the log file (can be either odometry or laser measurement)
         meas_type = line[0] # L : laser scan measurement, O : odometry measurement
         meas_vals = np.fromstring(line[2:], dtype=np.float64, sep=' ') # convert measurement values from string to double
@@ -159,13 +161,20 @@ def main():
             x_t1 = motion_model.update(u_t0, u_t1, x_t0)
             # print('end motion model')
 
+            x = int(x_t1[0]/10)
+            y = int(x_t1[1]/10)
+            if occupancy_map[y, x] != 0 and meas_type == "L":
+                w_t = 0
+                X_bar_new[m, :] = np.hstack((x_t1, w_t))
+                continue
+
             """
             SENSOR MODEL
             """
             
             if (meas_type == "L"):
                 z_t = ranges
-                w_t, xqs, yqs = sensor_model.beam_range_finder_model(z_t, x_t1)
+                w_t, xqs, yqs, z_casts = sensor_model.beam_range_finder_model(z_t, x_t1)
                 X_bar_new[m,:] = np.hstack((x_t1, w_t))
             else:
                 X_bar_new[m,:] = np.hstack((x_t1, X_bar[m,3]))
@@ -179,9 +188,9 @@ def main():
         # X_bar = resampler.low_variance_sampler(X_bar)
         X_bar = resampler.multinomial_sampler(X_bar)
         if vis_flag:
-            xqs = np.reshape(xqs, (len(xqs), 1))
-            yqs = np.reshape(yqs, (len(yqs), 1))
-            X_bar = np.hstack((xqs,yqs))
+            #xqs = np.reshape(xqs, (180, 1))
+            #yqs = np.reshape(yqs, (180, 1))
+            #X_bar = np.hstack((xqs,yqs))
             visualize_timestep(X_bar, time_idx)
         print('end loop')
  
@@ -204,6 +213,7 @@ def precompute_raycasts():
         y = i // width
         x_map = x * 10
         y_map = y * 10
+        #if not (0 <= occupancy_map[y,x] < 0.1):
         if occupancy_map[y,x] != 0:
             continue
         # range_find expects angle in radians
@@ -212,7 +222,7 @@ def precompute_raycasts():
             lookup[y,x,theta] = z_cast
             #print('z_cast = {} at pose {}, {}, {}'.format(z_cast, x, y, theta))
     print('end cast')
-    np.save('lookup.npy', lookup)
+    np.save('lookup_zero.npy', lookup)
 
 def visualize_casts(pose):
     # get map and init sensor model
@@ -236,7 +246,7 @@ def visualize_casts_from_lookup(pose):
             pose: expected in continuous frame (not map frame)
     '''
 
-    lookup = np.load('lookup.npy')
+    lookup = np.load('lookup_zero.npy')
     occupancy_map = get_occupancy_map()
     height, width = occupancy_map.shape
     visualize_map(occupancy_map)
@@ -269,8 +279,8 @@ def visualize_casts_from_lookup(pose):
 
   
 if __name__=="__main__":
-    #main()
+    main()
     #precompute_raycasts()
     #visualize_casts((4000,4000,1*np.pi/4))
-    visualize_casts_from_lookup((4000,4000,0))
+    #visualize_casts_from_lookup((6500,1500,np.pi))
 

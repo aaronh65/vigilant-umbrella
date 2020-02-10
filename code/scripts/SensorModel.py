@@ -14,7 +14,7 @@ class SensorModel:
     [Chapter 6.3]
     """
 
-    def __init__(self, occupancy_map):
+    def __init__(self, occupancy_map, lookup=None):
 
         """
         TODO : Initialize Sensor Model parameters here
@@ -31,6 +31,7 @@ class SensorModel:
         self.range = 8190
         self.norm = norm
         self.ray_step = 10
+        self.lookup = lookup
 
     def visualize_dist(self):
         measurements = np.arange(0,self.range,1) + 1
@@ -92,23 +93,40 @@ class SensorModel:
         q=0
         x, y, theta = x_t1
         laser_pose = (x + np.cos(theta)*25, y + np.sin(theta)*25, theta)
-        start_angle = theta - np.pi/2
-        angles = [(start_angle + n * np.pi/180)%(2*np.pi) for n in range(180)]
         xqs, yqs = np.zeros((1,180)), np.zeros((1,180))
         z_casts = np.zeros(180)
-        for idx in range(0, 180, self.ray_step):
-            # calculate ray cast for the particle @ that angle
-            # create probability distribution
-            # calculate likelihood for that laser reading
-            angle = angles[idx]
-            xq, yq, z_cast = self.range_find_one_angle(laser_pose, angle)
-            xqs[0,idx] = xq
-            yqs[0,idx] = yq
-            z_casts[idx] = z_cast
-            meas = z_t1_arr[idx]
-            prob = self.getProbability(z_cast, meas)
-            #print('z_cast = {}, meas = {}, prob = {}'.format(z_cast,meas,prob))
-            q += np.log(prob)
+        if self.lookup is None:
+            start_angle = theta - np.pi/2
+            angles = [(start_angle + n * np.pi/180)%(2*np.pi) for n in range(180)]
+            for idx in range(0, 180, self.ray_step):
+                # calculate ray cast for the particle @ that angle
+                # create probability distribution
+                # calculate likelihood for that laser reading
+                angle = angles[idx]
+                xq, yq, z_cast = self.range_find_one_angle(laser_pose, angle)
+                xqs[0,idx] = xq
+                yqs[0,idx] = yq
+                z_casts[idx] = z_cast
+                meas = z_t1_arr[idx]
+                prob = self.getProbability(z_cast, meas)
+                #print('z_cast = {}, meas = {}, prob = {}'.format(z_cast,meas,prob))
+                q += np.log(prob)
+        else:
+            x_map = int(x/10)
+            y_map = int(y/10)
+            start_angle = np.round((theta-np.pi/2)*180/np.pi).astype(int)
+            angles = [(start_angle + n)%360 for n in range(180)]
+            for idx, angle in enumerate(angles):
+                z_cast = self.lookup[y_map,x_map,angle]
+                meas = z_t1_arr[idx]
+                prob = self.getProbability(z_cast, meas)
+                q += np.log(prob)
+                angle_rad = angle * np.pi/180
+                dx = z_cast * np.cos(angle_rad)
+                dy = z_cast * np.sin(angle_rad)
+                xqs[0,idx] = np.round(x + dx).astype(int)
+                yqs[0,idx] = np.round(y + dy).astype(int)
+                z_casts[idx] = z_cast
         return q, xqs, yqs, z_casts
 
     
@@ -123,6 +141,7 @@ class SensorModel:
         z_cast = 0
         xq = np.round(x/10).astype(int)
         yq = np.round(y/10).astype(int)
+        #while 0 <= self.map[yq,xq] < 0.5 and z_cast < self.range:
         while self.map[yq,xq] == 0 and z_cast < self.range:
             dx = z_cast * np.cos(angle)
             dy = z_cast * np.sin(angle)
