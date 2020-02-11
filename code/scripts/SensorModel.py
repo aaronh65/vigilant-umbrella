@@ -21,20 +21,26 @@ class SensorModel:
         """
         # initialize all the parameters for the sensor model except the mean (comes from the raycasted val)
         # w1 w2 w3 w4 sigma lambda range
-        self.w1 = 0.348
-        self.w2 = 0.025
-        self.w3 = 0.002
-        self.w4 = 0.625
-        self.sigma = 200
+        self.w1 = 1500
+        self.w2 = 1750
+        self.w3 = 1500
+        self.w4 = 250
+        self.sigma = 90
         self.norm = norm
-        self.lmbda = 0.003
+        self.lmbda = 100
         self.map = occupancy_map
         self.range = 8183
         self.ray_step = 5
+        if 180%self.ray_step != 0:
+            print('ray step not even divisible with 180 ray casts')
+        self.num_rays = int(180/self.ray_step)
         if lookup_flag:
             self.lookup = np.load('lookup_zero.npy')
         else:
             self.lookup = None
+
+        self.rad2deg = lambda rad: np.round(rad*180/np.pi).astype(int)
+        self.deg2rad = lambda deg: deg*np.pi/180
 
 
     def visualize_dist(self):
@@ -90,7 +96,7 @@ class SensorModel:
         else:
             p_rand = 0
         p = self.w1*gauss + self.w2*exp + self.w3*p_max + self.w4*p_rand
-        #p /= (self.w1 + self.w2 + self.w3 + self.w4)
+        p /= (self.w1 + self.w2 + self.w3 + self.w4)
         #print(p)
         return p
 
@@ -106,13 +112,30 @@ class SensorModel:
         """
         q=0
         x, y, theta = x_t1
+        x_map, y_map = int(x/10), int(y/10)
+        '''
+        # non lookup
         laser_pose = (x + np.cos(theta)*25, y + np.sin(theta)*25, theta)
-        xqs, yqs = np.zeros(180)-1, np.zeros(180)-1
-        xms, yms = np.zeros(180)-1, np.zeros(180)-1
-        z_casts = np.zeros(180)-1
-        probs = np.zeros(180)-1
+        xqs, yqs = np.zeros(self.num_rays), np.zeros(self.num_rays)
+        xms, yms = np.zeros(self.num_rays), np.zeros(self.num_rays)
+        z_casts = np.zeros(self.num_rays)
+        '''
+        probs = np.zeros(self.num_rays)
         start_angle = theta - np.pi/2
-        angles = [(start_angle + n * np.pi/180)%(2*np.pi) for n in range(180)]
+        angles = [(start_angle + self.deg2rad(n))%(2*np.pi) for n in range(0,180,self.ray_step)]
+        angles_map = [self.rad2deg(angle) for angle in angles]
+        z_casts = self.lookup[y_map,x_map,angles_map]
+        xqs = x + np.cos(angles) * z_casts
+        yqs = y + np.sin(angles) * z_casts
+        z_scans = [z_t1_arr[n] for n in range(0,180,self.ray_step)]
+        xms = x + np.cos(angles) * z_scans
+        yms = y + np.sin(angles) * z_scans
+        for idx in range(self.num_rays):
+            probs[idx] = self.getProbability(z_casts[idx], z_scans[idx])
+            q += np.log(probs[idx])
+        q = 1.0/(-q)**0.5
+        return q, probs, z_casts, xqs, yqs, xms, yms
+    '''
         for idx in range(0, 180, self.ray_step):
             # calculate ray cast for the particle @ that angle
             # create probability distribution
@@ -138,7 +161,6 @@ class SensorModel:
             #print('@ angle = {}, z_cast = {}, meas = {}, prob = {}'.format(angle*180/np.pi,z_cast, meas,prob))
             #q -= np.log(1-prob)
             q += np.log(prob)
-            '''
         else:
             #print('not None')
             x_map = int(x/10)
@@ -163,10 +185,13 @@ class SensorModel:
                 xqs[0,idx] = np.round(x + dx).astype(int)
                 yqs[0,idx] = np.round(y + dy).astype(int)
             #print(time.time()-begin)
-            '''
 
-        q = np.exp(q)
+        #q = np.exp(q)
+        q = 1.0/(-q)**0.5
+        #print('q',q)
         return q, xqs, yqs, xms, yms, z_casts, probs
+
+            '''
 
     
     def range_find_one_angle(self, pose, angle):
@@ -180,8 +205,8 @@ class SensorModel:
         z_cast = 0
         xq = np.round(x/10).astype(int)
         yq = np.round(y/10).astype(int)
-        #while 0 <= self.map[yq,xq] < 0.5 and z_cast < self.range:
-        while 0 <= self.map[yq,xq] <= 0 and z_cast < self.range:
+        while 0 <= self.map[yq,xq] < 0.5 and z_cast < self.range:
+        #while 0 <= self.map[yq,xq] < 0 and z_cast < self.range:
             dx = z_cast * np.cos(angle)
             dy = z_cast * np.sin(angle)
             xq = np.round((x + dx)/10).astype(int)

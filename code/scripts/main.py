@@ -28,12 +28,12 @@ def visualize_timestep(X_bar, tstep, xqs=None,yqs=None, xms=None, yms=None):
     y_locs = X_bar[:,1]/10.0
     scat = plt.scatter(x_locs, y_locs, c='r', marker='o', s=1)
     if xqs is not None:
-        scat2 = plt.scatter(xqs, yqs, c='b', marker='o', s=1)
+        scat2 = plt.scatter(xqs/10, yqs/10, c='b', marker='o', s=1)
     if xms is not None:
         scat3 = plt.scatter(xms/10, yms/10, c='g', marker='o', s=1)
 
-    #plt.pause(1000)
-    plt.pause(0.00002)
+    plt.pause(50)
+    #plt.pause(0.00002)
     plt.title('timestep {}'.format(tstep))
     plt.savefig('plots/time_{}'.format(tstep))
     scat.remove()
@@ -104,8 +104,8 @@ def init_particles_freespace(num_particles, occupancy_map):
     x0_vals = np.array(x0_vals)
 
     X_bar_init = np.hstack((x0_vals,y0_vals,theta0_vals,w0_vals))
-    X_bar_init[0][0] = 4200
-    X_bar_init[0][1] = 4000
+    X_bar_init[0][0] = 4000
+    X_bar_init[0][1] = 4400
     X_bar_init[0][2] = np.pi
 
     return X_bar_init
@@ -135,10 +135,10 @@ def main():
     #lookup = np.load('lookup_zero.npy')
 
     motion_model = MotionModel()
-    sensor_model = SensorModel(occupancy_map, lookup_flag=False)
+    sensor_model = SensorModel(occupancy_map, lookup_flag=True)
     resampler = Resampling()
 
-    num_particles = 2000
+    num_particles = 5
     #X_bar = init_particles_random(num_particles, occupancy_map)
     X_bar = init_particles_freespace(num_particles, occupancy_map)
     #X_bar = np.array([[6500,1500,1*np.pi/2,1]])
@@ -166,8 +166,8 @@ def main():
         odometry_robot = meas_vals[0:3] # odometry reading [x, y, theta] in odometry frame
         time_stamp = meas_vals[-1]
 
-        if ((time_stamp <= 0.0)): # ignore pure odometry measurements for now (faster debugging) 
         #if ((time_stamp <= 0.0)): # ignore pure odometry measurements for now (faster debugging) 
+        if ((time_stamp <= 0.0) or meas_type == "O"): # ignore pure odometry measurements for now (faster debugging) 
             continue
 
         if (meas_type == "L"):
@@ -183,7 +183,11 @@ def main():
 
         X_bar_new = np.zeros( (num_particles,4), dtype=np.float64)
         u_t1 = odometry_robot
-        xqs, yqs, xms, yms = None, None, None, None
+        num_rays = sensor_model.num_rays
+        xqs = np.zeros((num_particles,num_rays))
+        yqs = np.zeros((num_particles,num_rays))
+        xms = np.zeros((num_particles,num_rays))
+        yms = np.zeros((num_particles,num_rays))
         for m in range(0, num_particles):
             #print(m)
             """
@@ -197,7 +201,7 @@ def main():
             x = int(x_t1[0]/10)
             y = int(x_t1[1]/10)
             
-            if not(0 <= occupancy_map[y, x] <= 0.2) and meas_type == "L":
+            if not(0 <= occupancy_map[y, x] <= 0.5) and meas_type == "L":
                 #print('dumping particle')
                 w_t = 0
                 X_bar_new[m, :] = np.hstack((x_t1, w_t))
@@ -209,17 +213,18 @@ def main():
             
             if (meas_type == "L"):
                 z_t = ranges
-                w_t, xqs, yqs, xms, yms, z_casts, probs = sensor_model.beam_range_finder_model(z_t, x_t1)
+                w_t, probs, z_casts, xqs[m], yqs[m], xms[m], yms[m] = sensor_model.beam_range_finder_model(z_t, x_t1)
                 '''
                 print('w_t = ',w_t)
                 print(x, y, np.round(x_t1[2]*180/np.pi).astype(int))
                 plt.figure()
-                plt.scatter(np.arange(180),probs)
+                plt.scatter(np.arange(len(probs)),probs)
                 plt.title('{}, {}, {} probability'.format(x, y, np.round(x_t1[2]*180/np.pi).astype(int)))
                 plt.figure()
                 plt.title('{}, {}, {} cast vs meas'.format(x, y, np.round(x_t1[2]*180/np.pi).astype(int)))
-                plt.scatter(np.arange(180), z_casts, label='casts')
-                plt.scatter(np.arange(180), z_t, label='measurements')
+                plt.scatter(np.arange(len(z_casts)), z_casts, label='casts')
+                z_t_plot= z_t[0:180:int(180/len(z_casts))]
+                plt.scatter(np.arange(len(z_t_plot)), z_t_plot, label='measurements')
                 plt.legend()
                 '''
                 X_bar_new[m,:] = np.hstack((x_t1, w_t))
@@ -233,8 +238,8 @@ def main():
             #xqs = np.reshape(xqs, (180, 1))
             #yqs = np.reshape(yqs, (180, 1))
             #X_bar = np.hstack((xqs,yqs))
-            #visualize_timestep(X_bar, time_idx, xqs, yqs, xms, yms)
-            visualize_timestep(X_bar, time_idx)
+            visualize_timestep(X_bar, time_idx, xqs, yqs, xms, yms)
+            #visualize_timestep(X_bar, time_idx)
 
         """
         RESAMPLING

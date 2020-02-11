@@ -17,10 +17,10 @@ class MotionModel:
         TODO : Initialize Motion Model parameters here (e.g. alpha1, 2, 3, and 4, user-defined)
         """
         
-        self.a1 = 0.05
-        self.a2 = 0.04
-        self.a3 = 0.05
-        self.a4 = 0.07
+        self.a1 = 0.001
+        self.a2 = 0.001
+        self.a3 = 0.001
+        self.a4 = 0.001
 
     def wrap(self, angle):
         """
@@ -53,14 +53,14 @@ class MotionModel:
         TODO : Add your code here (algorithm from table 5.6 in thrun)
         """
 
-        rot1 = np.arctan2(u_t1[1] - u_t0[1], u_t1[0] - u_t0[0]) - u_t0[2]
-        trans = np.sqrt((u_t1[0]-u_t0[0])**2 + (u_t1[1]- u_t0[1])**2)
-        rot2 = u_t1[2] - u_t0[2] - rot1
-        
-        if trans == 0 and rot1 + rot2 == 0:
+        if u_t1[0] == u_t0[0] and u_t1[1] == u_t0[1] and u_t1[2] == u_t0[2]:
+            #print('no motion')
             x_t1 = x_t0
             return x_t1
 
+        rot1 = np.arctan2(u_t1[1] - u_t0[1], u_t1[0] - u_t0[0]) - u_t0[2]
+        trans = np.sqrt((u_t1[0]-u_t0[0])**2 + (u_t1[1]- u_t0[1])**2)
+        rot2 = u_t1[2] - u_t0[2] - rot1
 
         var_rot1 = self.a1*rot1**2 + self.a2*trans**2
         var_trans = self.a3*trans**2 + self.a4*rot1**2 + self.a4*rot2**2
