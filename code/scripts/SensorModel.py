@@ -4,7 +4,7 @@ import time
 from matplotlib import pyplot as plt
 from scipy.stats import norm
 import pdb
-
+from utils import get_occupancy_map
 from MapReader import MapReader
 
 class SensorModel:
@@ -21,16 +21,16 @@ class SensorModel:
         """
         # initialize all the parameters for the sensor model except the mean (comes from the raycasted val)
         # w1 w2 w3 w4 sigma lambda range
-        self.w1 = 0.625
+        self.w1 = 0.348
         self.w2 = 0.025
         self.w3 = 0.002
-        self.w4 = 0.3480
-        self.sigma = 50
+        self.w4 = 0.625
+        self.sigma = 200
         self.norm = norm
-        self.lmbda = 0.001
+        self.lmbda = 0.003
         self.map = occupancy_map
         self.range = 8183
-        self.ray_step = 1
+        self.ray_step = 5
         if lookup_flag:
             self.lookup = np.load('lookup_zero.npy')
         else:
@@ -40,8 +40,10 @@ class SensorModel:
     def visualize_dist(self):
         measurements = np.arange(0,self.range,1) + 1
         cast = np.arange(0, self.range,1)
-        probs = self.getProbability(cast, measurements)
-        plt.plot(measurements, dist)
+        cast = 3000
+
+        probs = [self.getProbability(cast, meas) for meas in measurements]
+        plt.plot(measurements, probs)
         plt.show()
 
 
@@ -58,7 +60,6 @@ class SensorModel:
         # https://stackoverflow.com/questions/27093704/converge-values-to-range-pi-pi-in-matlab-not-using-wraptopi
         
         angle_wrapped = angle - 2*np.pi * np.floor((angle + np.pi) / (2*np.pi))
-        
         return angle_wrapped
 
     # calculates the probability of your measurement given sensor model pdf based on the raycasted mean val
@@ -78,7 +79,7 @@ class SensorModel:
             exp = 0
 
         # out of range
-        if np.abs(meas - self.range) <= 1:
+        if meas >= self.range:
             p_max = 1
         else:
             p_max = 0
@@ -106,31 +107,37 @@ class SensorModel:
         q=0
         x, y, theta = x_t1
         laser_pose = (x + np.cos(theta)*25, y + np.sin(theta)*25, theta)
-        xqs, yqs = np.zeros(180), np.zeros(180)
-        xms, yms = np.zeros(180), np.zeros(180)
-        z_casts = np.zeros(180)
-        if self.lookup is None:
-            #print('None')
-            start_angle = theta - np.pi/2
-            angles = [(start_angle + n * np.pi/180)%(2*np.pi) for n in range(180)]
-            #begin = time.time()
-            for idx in range(0, 180, self.ray_step):
-                # calculate ray cast for the particle @ that angle
-                # create probability distribution
-                # calculate likelihood for that laser reading
-                angle = angles[idx]
+        xqs, yqs = np.zeros(180)-1, np.zeros(180)-1
+        xms, yms = np.zeros(180)-1, np.zeros(180)-1
+        z_casts = np.zeros(180)-1
+        probs = np.zeros(180)-1
+        start_angle = theta - np.pi/2
+        angles = [(start_angle + n * np.pi/180)%(2*np.pi) for n in range(180)]
+        for idx in range(0, 180, self.ray_step):
+            # calculate ray cast for the particle @ that angle
+            # create probability distribution
+            # calculate likelihood for that laser reading
+            angle = angles[idx]
+            if self.lookup is None:
                 xq, yq, z_cast = self.range_find_one_angle(laser_pose, angle)
                 xqs[idx] = xq
                 yqs[idx] = yq
-                z_casts[idx] = z_cast
-                meas = z_t1_arr[idx]
-                xms[idx] = x + np.cos(angle) * meas
-                yms[idx] = y + np.sin(angle) * meas
-                prob = self.getProbability(z_cast, meas)
-                #print('@ angle = {}, z_cast = {}, meas = {}, prob = {}'.format(angle*180/np.pi,z_cast, meas,prob))
-                q += np.log(prob)
-                #q -= np.log(1-prob)
-            #print(time.time()-begin)
+            else:
+                x_map = int(x/10)
+                y_map = int(y/10)
+                angle_deg = np.round((angle-np.pi/2)*180/np.pi).astype(int)
+                z_cast = self.lookup[y_map, x_map, angle_deg]
+                xqs[idx] = x + np.cos(angle)*z_cast
+                yqs[idx] = y + np.sin(angle)*z_cast
+            z_casts[idx] = z_cast
+            meas = z_t1_arr[idx]
+            xms[idx] = x + np.cos(angle) * meas
+            yms[idx] = y + np.sin(angle) * meas
+            prob = self.getProbability(z_cast, meas)
+            probs[idx] = prob
+            #print('@ angle = {}, z_cast = {}, meas = {}, prob = {}'.format(angle*180/np.pi,z_cast, meas,prob))
+            #q -= np.log(1-prob)
+            q += np.log(prob)
             '''
         else:
             #print('not None')
@@ -157,8 +164,9 @@ class SensorModel:
                 yqs[0,idx] = np.round(y + dy).astype(int)
             #print(time.time()-begin)
             '''
-        #q = np.exp(q)
-        return q, xqs, yqs, xms, yms, z_casts
+
+        q = np.exp(q)
+        return q, xqs, yqs, xms, yms, z_casts, probs
 
     
     def range_find_one_angle(self, pose, angle):
@@ -173,7 +181,7 @@ class SensorModel:
         xq = np.round(x/10).astype(int)
         yq = np.round(y/10).astype(int)
         #while 0 <= self.map[yq,xq] < 0.5 and z_cast < self.range:
-        while 0 <= self.map[yq,xq] <= 0.2 and z_cast < self.range:
+        while 0 <= self.map[yq,xq] <= 0 and z_cast < self.range:
             dx = z_cast * np.cos(angle)
             dy = z_cast * np.sin(angle)
             xq = np.round((x + dx)/10).astype(int)
@@ -197,4 +205,7 @@ class SensorModel:
         return xqs, yqs, z_casts
 
 if __name__=='__main__':
-    pass
+    map = get_occupancy_map()
+    model = SensorModel(map)
+    model.visualize_dist()
+

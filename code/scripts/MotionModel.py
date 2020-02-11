@@ -56,6 +56,11 @@ class MotionModel:
         rot1 = np.arctan2(u_t1[1] - u_t0[1], u_t1[0] - u_t0[0]) - u_t0[2]
         trans = np.sqrt((u_t1[0]-u_t0[0])**2 + (u_t1[1]- u_t0[1])**2)
         rot2 = u_t1[2] - u_t0[2] - rot1
+        
+        if trans == 0 and rot1 + rot2 == 0:
+            x_t1 = x_t0
+            return x_t1
+
 
         var_rot1 = self.a1*rot1**2 + self.a2*trans**2
         var_trans = self.a3*trans**2 + self.a4*rot1**2 + self.a4*rot2**2
@@ -110,9 +115,9 @@ if __name__=="__main__":
     logfile = open(src_path_log, 'r')
     motion_model = MotionModel()
     num_particles = 1
-    y0_vals = np.random.uniform(0,7000, (num_particles, 1))
-    x0_vals = np.random.uniform(3000,7000, (num_particles, 1))
-    theta0_vals = np.random.uniform(-3.14,3.14, (num_particles, 1))
+    y0_vals = np.random.uniform(4000,4010, (num_particles, 1))
+    x0_vals = np.random.uniform(4150,4160, (num_particles, 1))
+    theta0_vals = np.random.uniform(0*np.pi-0.01,0*np.pi+0.01, (num_particles, 1))
     X_bar = np.hstack((x0_vals, y0_vals, theta0_vals)).transpose()
     print('Initial particle position: {}'.format(X_bar))
     first_time_flag=True
@@ -141,6 +146,7 @@ if __name__=="__main__":
         refY.append(u_t1[1])
     plt.subplot(1,2,1)
     plt.plot(xt,yt)
+    plt.scatter(xt[0],yt[0],c='g')
     plt.legend('robot')
     plt.subplot(1,2,2)
     plt.plot(refX, refY)
