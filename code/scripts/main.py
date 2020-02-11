@@ -32,8 +32,8 @@ def visualize_timestep(X_bar, tstep, xqs=None,yqs=None, xms=None, yms=None):
     if xms is not None:
         scat3 = plt.scatter(xms/10, yms/10, c='g', marker='o', s=1)
 
-    plt.pause(50)
-    #plt.pause(0.00002)
+    #plt.pause(1)
+    plt.pause(0.00002)
     plt.title('timestep {}'.format(tstep))
     plt.savefig('plots/time_{}'.format(tstep))
     scat.remove()
@@ -77,19 +77,16 @@ def init_particles_freespace(num_particles, occupancy_map):
     # initialize angle [theta] in world_frame for all particles
     # ground truth start position
     '''
-    y0_rand = np.random.uniform( 4000, 4010, (num_particles, 1) )
     x0_rand = np.random.uniform( 4150, 4160, (num_particles, 1) )
-    #theta0_vals = np.random.uniform( np.pi-0.01, np.pi+0.01, (num_particles, 1) )
+    y0_rand = np.random.uniform( 4000, 4010, (num_particles, 1) )
+    theta0_vals = np.random.uniform( np.pi-0.01, np.pi+0.01, (num_particles, 1) )
     '''
-
-
-    theta0_vals = np.random.uniform( -np.pi,np.pi, (num_particles, 1) )
-    theta0_vals[0][0] = np.pi
     new_num_particles = num_particles
     while len(y0_vals) < num_particles:
         # initialize [x, y] positions in world_frame for all particles
         y0_rand = np.random.uniform( 1000, 7010, (new_num_particles, 1) )
         x0_rand = np.random.uniform( 2000, 7160, (new_num_particles, 1) )
+        theta0_vals = np.random.uniform( -np.pi,np.pi, (num_particles, 1) )
 
         for i in range(new_num_particles):
             y_map = np.round(y0_rand[i]/10.0).astype(np.int64)
@@ -104,9 +101,9 @@ def init_particles_freespace(num_particles, occupancy_map):
     x0_vals = np.array(x0_vals)
 
     X_bar_init = np.hstack((x0_vals,y0_vals,theta0_vals,w0_vals))
-    X_bar_init[0][0] = 4000
-    X_bar_init[0][1] = 4400
-    X_bar_init[0][2] = np.pi
+    X_bar_init[:][0] = 4155
+    X_bar_init[:][1] = 4005
+    X_bar_init[:][2] = np.pi
 
     return X_bar_init
 
@@ -138,7 +135,7 @@ def main():
     sensor_model = SensorModel(occupancy_map, lookup_flag=True)
     resampler = Resampling()
 
-    num_particles = 5
+    num_particles = 500
     #X_bar = init_particles_random(num_particles, occupancy_map)
     X_bar = init_particles_freespace(num_particles, occupancy_map)
     #X_bar = np.array([[6500,1500,1*np.pi/2,1]])
@@ -166,8 +163,8 @@ def main():
         odometry_robot = meas_vals[0:3] # odometry reading [x, y, theta] in odometry frame
         time_stamp = meas_vals[-1]
 
-        #if ((time_stamp <= 0.0)): # ignore pure odometry measurements for now (faster debugging) 
-        if ((time_stamp <= 0.0) or meas_type == "O"): # ignore pure odometry measurements for now (faster debugging) 
+        if ((time_stamp <= 0.0)): # ignore pure odometry measurements for now (faster debugging) 
+        #if ((time_stamp <= 0.0) or meas_type == "O"): # ignore pure odometry measurements for now (faster debugging) 
             continue
 
         if (meas_type == "L"):
@@ -184,10 +181,13 @@ def main():
         X_bar_new = np.zeros( (num_particles,4), dtype=np.float64)
         u_t1 = odometry_robot
         num_rays = sensor_model.num_rays
-        xqs = np.zeros((num_particles,num_rays))
-        yqs = np.zeros((num_particles,num_rays))
-        xms = np.zeros((num_particles,num_rays))
-        yms = np.zeros((num_particles,num_rays))
+        if meas_type == "O":
+            xqs, yqs, xms, yms = None, None, None, None
+        elif meas_type == "L":
+            xqs = np.zeros((num_particles,num_rays))
+            yqs = np.zeros((num_particles,num_rays))
+            xms = np.zeros((num_particles,num_rays))
+            yms = np.zeros((num_particles,num_rays))
         for m in range(0, num_particles):
             #print(m)
             """
@@ -201,7 +201,7 @@ def main():
             x = int(x_t1[0]/10)
             y = int(x_t1[1]/10)
             
-            if not(0 <= occupancy_map[y, x] <= 0.5) and meas_type == "L":
+            if not(0 <= occupancy_map[y, x] <= 0.3) and meas_type == "L":
                 #print('dumping particle')
                 w_t = 0
                 X_bar_new[m, :] = np.hstack((x_t1, w_t))
@@ -238,15 +238,13 @@ def main():
             #xqs = np.reshape(xqs, (180, 1))
             #yqs = np.reshape(yqs, (180, 1))
             #X_bar = np.hstack((xqs,yqs))
-            visualize_timestep(X_bar, time_idx, xqs, yqs, xms, yms)
-            #visualize_timestep(X_bar, time_idx)
+            #visualize_timestep(X_bar, time_idx, xqs, yqs, xms, yms)
+            visualize_timestep(X_bar, time_idx)
 
         """
         RESAMPLING
         """
         if (meas_type == "L"):
-            print(X_bar[0])
-            print(X_bar[30])
             X_bar = resampler.low_variance_sampler(X_bar)
         #X_bar = resampler.multinomial_sampler(X_bar)
          

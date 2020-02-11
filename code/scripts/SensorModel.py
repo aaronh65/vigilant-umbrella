@@ -21,13 +21,13 @@ class SensorModel:
         """
         # initialize all the parameters for the sensor model except the mean (comes from the raycasted val)
         # w1 w2 w3 w4 sigma lambda range
-        self.w1 = 1500
-        self.w2 = 1750
+        self.w1 = 1750
+        self.w2 = 1500
         self.w3 = 1500
         self.w4 = 250
         self.sigma = 90
         self.norm = norm
-        self.lmbda = 100
+        self.lmbda = 150
         self.map = occupancy_map
         self.range = 8183
         self.ray_step = 5
@@ -39,8 +39,8 @@ class SensorModel:
         else:
             self.lookup = None
 
-        self.rad2deg = lambda rad: np.round(rad*180/np.pi).astype(int)
-        self.deg2rad = lambda deg: deg*np.pi/180
+        self.rad2deg = lambda rad: np.round(rad*180/np.pi).astype(int)%360
+        self.deg2rad = lambda deg: deg*np.pi/180%(2*np.pi)
 
 
     def visualize_dist(self):
@@ -133,7 +133,8 @@ class SensorModel:
         for idx in range(self.num_rays):
             probs[idx] = self.getProbability(z_casts[idx], z_scans[idx])
             q += np.log(probs[idx])
-        q = 1.0/(-q)**0.5
+        q = 1.0/np.abs(q)**1.0
+        #print(q)
         return q, probs, z_casts, xqs, yqs, xms, yms
     '''
         for idx in range(0, 180, self.ray_step):
