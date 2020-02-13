@@ -26,17 +26,23 @@ def visualize_map(occupancy_map):
 def visualize_timestep(X_bar, tstep, xqs=None,yqs=None, xms=None, yms=None):
     x_locs = X_bar[:,0]/10.0
     y_locs = X_bar[:,1]/10.0
-    scat = plt.scatter(x_locs, y_locs, c='r', marker='o', s=1)
+    idxs = X_bar[:,3].argsort()[::-1]
+    X_bar_sorted = X_bar[idxs]
+    x_locs_sorted = X_bar_sorted[:,0]/10.0
+    y_locs_sorted = X_bar_sorted[:,1]/10.0
+    scat_rest = plt.scatter(x_locs_sorted[20:], y_locs_sorted[20:], c='r', marker='o', s=1)
+    scat_top = plt.scatter(x_locs_sorted[:20], y_locs_sorted[:20], c='b', marker='o', s=3)
     if xqs is not None:
         scat2 = plt.scatter(xqs/10, yqs/10, c='b', marker='o', s=1)
     if xms is not None:
         scat3 = plt.scatter(xms/10, yms/10, c='g', marker='o', s=1)
 
-    #plt.pause(1)
+    #plt.pause(1000000000000)
     plt.pause(0.00002)
     plt.title('timestep {}'.format(tstep))
     plt.savefig('plots/time_{}'.format(tstep))
-    scat.remove()
+    scat_top.remove()
+    scat_rest.remove()
     if xqs is not None:
         scat2.remove()
     if xms is not None:
@@ -84,8 +90,8 @@ def init_particles_freespace(num_particles, occupancy_map):
     new_num_particles = num_particles
     while len(y0_vals) < num_particles:
         # initialize [x, y] positions in world_frame for all particles
-        y0_rand = np.random.uniform( 1000, 7010, (new_num_particles, 1) )
-        x0_rand = np.random.uniform( 2000, 7160, (new_num_particles, 1) )
+        y0_rand = np.random.uniform( 0, 7500, (new_num_particles, 1) )
+        x0_rand = np.random.uniform( 3000, 7000, (new_num_particles, 1) )
         theta0_vals = np.random.uniform( -np.pi,np.pi, (num_particles, 1) )
 
         for i in range(new_num_particles):
@@ -101,9 +107,11 @@ def init_particles_freespace(num_particles, occupancy_map):
     x0_vals = np.array(x0_vals)
 
     X_bar_init = np.hstack((x0_vals,y0_vals,theta0_vals,w0_vals))
+    '''
     X_bar_init[:][0] = 4155
     X_bar_init[:][1] = 4005
     X_bar_init[:][2] = np.pi
+    '''
 
     return X_bar_init
 
@@ -124,7 +132,7 @@ def main():
     Initialize Parameters
     """
     src_path_map = '../data/map/wean.dat'
-    src_path_log = '../data/log/robotdata1.log'
+    src_path_log = '../data/log/robotdata2.log'
 
     map_obj = MapReader(src_path_map)
     occupancy_map = map_obj.get_map() 
@@ -135,7 +143,7 @@ def main():
     sensor_model = SensorModel(occupancy_map, lookup_flag=True)
     resampler = Resampling()
 
-    num_particles = 500
+    num_particles = 1000
     #X_bar = init_particles_random(num_particles, occupancy_map)
     X_bar = init_particles_freespace(num_particles, occupancy_map)
     #X_bar = np.array([[6500,1500,1*np.pi/2,1]])
@@ -201,7 +209,7 @@ def main():
             x = int(x_t1[0]/10)
             y = int(x_t1[1]/10)
             
-            if not(0 <= occupancy_map[y, x] <= 0.3) and meas_type == "L":
+            if not(0 <= occupancy_map[y, x] <= 0.0) and meas_type == "L":
                 #print('dumping particle')
                 w_t = 0
                 X_bar_new[m, :] = np.hstack((x_t1, w_t))

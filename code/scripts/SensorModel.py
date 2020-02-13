@@ -21,8 +21,8 @@ class SensorModel:
         """
         # initialize all the parameters for the sensor model except the mean (comes from the raycasted val)
         # w1 w2 w3 w4 sigma lambda range
-        self.w1 = 1750
-        self.w2 = 1500
+        self.w1 = 1500
+        self.w2 = 1750
         self.w3 = 1500
         self.w4 = 250
         self.sigma = 90
