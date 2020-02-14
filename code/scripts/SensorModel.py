@@ -136,65 +136,7 @@ class SensorModel:
         q = 1.0/np.abs(q)**1.0
         #print(q)
         return q, probs, z_casts, xqs, yqs, xms, yms
-    '''
-        for idx in range(0, 180, self.ray_step):
-            # calculate ray cast for the particle @ that angle
-            # create probability distribution
-            # calculate likelihood for that laser reading
-            angle = angles[idx]
-            if self.lookup is None:
-                xq, yq, z_cast = self.range_find_one_angle(laser_pose, angle)
-                xqs[idx] = xq
-                yqs[idx] = yq
-            else:
-                x_map = int(x/10)
-                y_map = int(y/10)
-                angle_deg = np.round((angle-np.pi/2)*180/np.pi).astype(int)
-                z_cast = self.lookup[y_map, x_map, angle_deg]
-                xqs[idx] = x + np.cos(angle)*z_cast
-                yqs[idx] = y + np.sin(angle)*z_cast
-            z_casts[idx] = z_cast
-            meas = z_t1_arr[idx]
-            xms[idx] = x + np.cos(angle) * meas
-            yms[idx] = y + np.sin(angle) * meas
-            prob = self.getProbability(z_cast, meas)
-            probs[idx] = prob
-            #print('@ angle = {}, z_cast = {}, meas = {}, prob = {}'.format(angle*180/np.pi,z_cast, meas,prob))
-            #q -= np.log(1-prob)
-            q += np.log(prob)
-        else:
-            #print('not None')
-            x_map = int(x/10)
-            y_map = int(y/10)
-            start_angle = np.round((theta-np.pi/2)*180/np.pi).astype(int)
-            angles = [(start_angle + n)%360 for n in range(180)]
-            #begin = time.time()
-            #for idx, angle in enumerate(angles):
-            for idx in range(0, 180, self.ray_step):
-                angle = angles[idx]
-                z_cast = self.lookup[y_map,x_map,angle]
-                if z_cast == -1:
-                    print('wack')
-                z_casts[idx] = z_cast
-                meas = z_t1_arr[idx]
-                prob = self.getProbability(z_cast, meas)
-                #q -= np.log(1-prob)
-                q += np.log(prob)
-                angle_rad = angle * np.pi/180
-                dx = z_cast * np.cos(angle_rad)
-                dy = z_cast * np.sin(angle_rad)
-                xqs[0,idx] = np.round(x + dx).astype(int)
-                yqs[0,idx] = np.round(y + dy).astype(int)
-            #print(time.time()-begin)
-
-        #q = np.exp(q)
-        q = 1.0/(-q)**0.5
-        #print('q',q)
-        return q, xqs, yqs, xms, yms, z_casts, probs
-
-            '''
-
-    
+        
     def range_find_one_angle(self, pose, angle):
         """ Find the ray cast at a pose at heading angle
             pose: in continuous coordinates
@@ -206,8 +148,7 @@ class SensorModel:
         z_cast = 0
         xq = np.round(x/10).astype(int)
         yq = np.round(y/10).astype(int)
-        while 0 <= self.map[yq,xq] < 0.5 and z_cast < self.range:
-        #while 0 <= self.map[yq,xq] < 0 and z_cast < self.range:
+        while self.map[yq,xq] == 0 and z_cast < self.range:
             dx = z_cast * np.cos(angle)
             dy = z_cast * np.sin(angle)
             xq = np.round((x + dx)/10).astype(int)

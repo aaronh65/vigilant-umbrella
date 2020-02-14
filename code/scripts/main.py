@@ -67,12 +67,6 @@ def init_particles_random(num_particles, occupancy_map):
 
 def init_particles_freespace(num_particles, occupancy_map):
 
-    # initialize [x, y, theta] positions in world_frame for all particles
-
-    """
-    TODO : Add your code here
-    """ 
-
     # initialize weights for all particles
     w0_vals = np.ones( (num_particles,1), dtype=np.float64)
     w0_vals = w0_vals / num_particles
@@ -80,9 +74,8 @@ def init_particles_freespace(num_particles, occupancy_map):
     y0_vals = []
     x0_vals = []
 
-    # initialize angle [theta] in world_frame for all particles
-    # ground truth start position
     '''
+    # ground truth start position
     x0_rand = np.random.uniform( 4150, 4160, (num_particles, 1) )
     y0_rand = np.random.uniform( 4000, 4010, (num_particles, 1) )
     theta0_vals = np.random.uniform( np.pi-0.01, np.pi+0.01, (num_particles, 1) )
@@ -107,12 +100,6 @@ def init_particles_freespace(num_particles, occupancy_map):
     x0_vals = np.array(x0_vals)
 
     X_bar_init = np.hstack((x0_vals,y0_vals,theta0_vals,w0_vals))
-    '''
-    X_bar_init[:][0] = 4155
-    X_bar_init[:][1] = 4005
-    X_bar_init[:][2] = np.pi
-    '''
-
     return X_bar_init
 
     
@@ -222,19 +209,6 @@ def main():
             if (meas_type == "L"):
                 z_t = ranges
                 w_t, probs, z_casts, xqs[m], yqs[m], xms[m], yms[m] = sensor_model.beam_range_finder_model(z_t, x_t1)
-                '''
-                print('w_t = ',w_t)
-                print(x, y, np.round(x_t1[2]*180/np.pi).astype(int))
-                plt.figure()
-                plt.scatter(np.arange(len(probs)),probs)
-                plt.title('{}, {}, {} probability'.format(x, y, np.round(x_t1[2]*180/np.pi).astype(int)))
-                plt.figure()
-                plt.title('{}, {}, {} cast vs meas'.format(x, y, np.round(x_t1[2]*180/np.pi).astype(int)))
-                plt.scatter(np.arange(len(z_casts)), z_casts, label='casts')
-                z_t_plot= z_t[0:180:int(180/len(z_casts))]
-                plt.scatter(np.arange(len(z_t_plot)), z_t_plot, label='measurements')
-                plt.legend()
-                '''
                 X_bar_new[m,:] = np.hstack((x_t1, w_t))
             else:
                 X_bar_new[m,:] = np.hstack((x_t1, X_bar[m,3]))
@@ -243,9 +217,6 @@ def main():
         u_t0 = u_t1
 
         if vis_flag:
-            #xqs = np.reshape(xqs, (180, 1))
-            #yqs = np.reshape(yqs, (180, 1))
-            #X_bar = np.hstack((xqs,yqs))
             #visualize_timestep(X_bar, time_idx, xqs, yqs, xms, yms)
             visualize_timestep(X_bar, time_idx)
 
@@ -254,7 +225,7 @@ def main():
         """
         if (meas_type == "L"):
             X_bar = resampler.low_variance_sampler(X_bar)
-        #X_bar = resampler.multinomial_sampler(X_bar)
+            #X_bar = resampler.multinomial_sampler(X_bar)
          
 def precompute_raycasts():
     # process map and get dimensions

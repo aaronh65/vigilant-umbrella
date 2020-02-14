@@ -49,35 +49,6 @@ class MotionModel:
         param[out] x_t1 : particle state belief [x, y, theta] at time t [world_frame]
         """
 
-        """
-        TODO : Add your code here (algorithm from table 5.6 in thrun)
-        """
-
-        if u_t1[0] == u_t0[0] and u_t1[1] == u_t0[1] and u_t1[2] == u_t0[2]:
-            #print('no motion')
-            x_t1 = x_t0
-            return x_t1
-
-        rot1 = np.arctan2(u_t1[1] - u_t0[1], u_t1[0] - u_t0[0]) - u_t0[2]
-        trans = np.sqrt((u_t1[0]-u_t0[0])**2 + (u_t1[1]- u_t0[1])**2)
-        rot2 = u_t1[2] - u_t0[2] - rot1
-
-        var_rot1 = self.a1*rot1**2 + self.a2*trans**2
-        var_trans = self.a3*trans**2 + self.a4*rot1**2 + self.a4*rot2**2
-        var_rot2 = self.a1*rot2**2 + self.a2*trans**2
-
-        rot1_bar = rot1 - self._sample(var_rot1)
-        trans_bar = trans - self._sample(var_trans)
-        rot2_bar = rot2 - self._sample(var_rot2)
-
-        x_t1 = np.zeros((3))
-        x_t1[0] = x_t0[0] + trans_bar*np.cos(x_t0[2] + rot1_bar)
-        x_t1[1] = x_t0[1] + trans_bar*np.sin(x_t0[2] + rot1_bar)
-        x_t1[2] = x_t0[2] + rot1_bar + rot2_bar
-
-        return x_t1.transpose()
-        '''
-
         if u_t1[0] == u_t0[0] and u_t1[1] == u_t0[1] and u_t1[2] == u_t0[2]:
             #print('no motion')
             x_t1 = x_t0
@@ -111,7 +82,6 @@ class MotionModel:
         x_t1 = np.array([xp, yp, thp])
         #x_t1 = np.reshape(x_t1, (3,1))
         return x_t1
-        '''
 
 
 if __name__=="__main__":
