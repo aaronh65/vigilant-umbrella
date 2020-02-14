@@ -132,7 +132,7 @@ def main():
     Initialize Parameters
     """
     src_path_map = '../data/map/wean.dat'
-    src_path_log = '../data/log/robotdata2.log'
+    src_path_log = '../data/log/robotdata3.log'
 
     map_obj = MapReader(src_path_map)
     occupancy_map = map_obj.get_map() 

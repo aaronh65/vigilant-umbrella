@@ -76,9 +76,13 @@ class MotionModel:
         x_t1[2] = x_t0[2] + rot1_bar + rot2_bar
 
         return x_t1.transpose()
-
-        
         '''
+
+        if u_t1[0] == u_t0[0] and u_t1[1] == u_t0[1] and u_t1[2] == u_t0[2]:
+            #print('no motion')
+            x_t1 = x_t0
+            return x_t1
+
         xb, yb, thb = u_t0
         xbp, ybp, thbp = u_t1
         
@@ -108,6 +112,7 @@ class MotionModel:
         #x_t1 = np.reshape(x_t1, (3,1))
         return x_t1
         '''
+
 
 if __name__=="__main__":
     occupancy_map = get_occupancy_map()
